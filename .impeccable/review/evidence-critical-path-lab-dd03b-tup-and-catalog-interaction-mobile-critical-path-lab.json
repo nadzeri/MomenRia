@@ -1,0 +1,64 @@
+{
+  "setup": "Localhost, fresh browser context, no CPU or network throttling; synthetic catalog",
+  "navigation": [
+    {
+      "responseEnd": 1,
+      "domContentLoaded": 144,
+      "load": 196
+    }
+  ],
+  "resources": [
+    {
+      "name": "/static/app/assets/fonts/bricolage-grotesque-latin.woff2",
+      "transferSize": 77168,
+      "duration": 2
+    },
+    {
+      "name": "/static/app/server.css",
+      "transferSize": 52512,
+      "duration": 3
+    },
+    {
+      "name": "/static/app/server.js",
+      "transferSize": 108469,
+      "duration": 4
+    },
+    {
+      "name": "/api/v1/session",
+      "transferSize": 751,
+      "duration": 2
+    },
+    {
+      "name": "/api/v1/templates",
+      "transferSize": 23353,
+      "duration": 57
+    },
+    {
+      "name": "/static/app/assets/studio.webp",
+      "transferSize": 54288,
+      "duration": 1
+    },
+    {
+      "name": "/static/app/assets/photo-guide-right.jpg",
+      "transferSize": 39137,
+      "duration": 52
+    },
+    {
+      "name": "/static/app/assets/photo-guide.jpg",
+      "transferSize": 38135,
+      "duration": 52
+    },
+    {
+      "name": "/static/app/assets/lebaran.webp",
+      "transferSize": 89486,
+      "duration": 55
+    },
+    {
+      "name": "/static/app/assets/events/wisuda-ui.webp",
+      "transferSize": 0,
+      "duration": 0
+    }
+  ],
+  "longTasksSupported": false,
+  "longTasks": []
+}

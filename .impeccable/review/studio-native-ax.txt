@@ -1,0 +1,57 @@
+Browser tab: 2, Title: "Template foto keluarga — MomenRia", URL: "http://127.0.0.1:8766/#/studio/57b24879-9272-4aad-8dde-41f16e26b1ca".
+1 AXWebArea Studio foto — MomenRia, URL: 127.0.0.1:8766/#/studio/57b24879-9272-4aad-8dde-41f16e26b1ca
+	2 link Description: Lewati ke konten, Value: 127.0.0.1:8766/#main
+	3 container header
+		14 link Description: MomenRia, beranda, Value: 127.0.0.1:8766/#/
+		15 container Navigasi utama
+			16 link Description: Beranda, Value: 127.0.0.1:8766/#/
+			17 link Description: Template, Value: 127.0.0.1:8766/#/templates
+			18 link Description: Foto saya, Value: 127.0.0.1:8766/#/projects
+			19 link Description: Panduan, Value: 127.0.0.1:8766/#/guide
+			20 link Description: Bantuan, Value: 127.0.0.1:8766/#/support
+		21 link Description: Akun saya, Value: 127.0.0.1:8766/accounts/email/
+		22 link Description: Keluar, Value: 127.0.0.1:8766/accounts/logout/
+	13 container main
+		23 container
+			24 link Description: ← Koleksi momen, Value: 127.0.0.1:8766/#/templates/hari-raya
+			25 heading Lebaran Bersama, Value: 1
+				26 text Lebaran Bersama
+			27 text 2 orang · Busana Lebaran sage Mulai dari fotomu
+			28 container Langkah pembuatan
+				29 content list
+					30 text Template
+					31 text Foto
+					32 text Posisi & buat
+					33 text Cek wajah
+					34 text Simpan
+			35 text Simulasi pemrosesan.
+			36 text  Gunakan foto contoh untuk mencoba alur. Hasil ini bukan bukti kemiripan atau kesiapan layanan untuk foto pribadi. Posisi wajah 0 / 2 foto siap
+			37 image Contoh Lebaran Bersama, 2 orang
+			38 button Tambahkan foto wajah 1
+			39 button Tambahkan foto wajah 2
+			40 text Nomor menunjukkan posisi orang. Cocokkan dengan thumbnail di bawah. Ini masih contoh; fotomu muncul setelah diproses.
+			41 button Ganti template
+			42 link Description: Tips pilih foto, Value: 127.0.0.1:8766/#/guide
+			43 heading Tambahkan foto, Value: 2
+				44 text Tambahkan foto
+			45 text Satu foto yang jelas buat tiap orang.
+			46 text Gratis · preview JPEG berwatermark · hingga 768 px. 7 hari untuk foto asli; 30 hari untuk hasil.
+			47 text Foto siap
+			48 text 0 dari 2
+			49 button Wajah 1 Pilih foto JPEG / PNG 1
+				50 text Wajah 1
+				51 text Pilih foto JPEG / PNG
+				52 text 1
+			53 button Wajah 2 Pilih foto JPEG / PNG 2
+				54 text Wajah 2
+				55 text Pilih foto JPEG / PNG
+				56 text 2
+			57 button Tambah beberapa foto sekaligus
+			58 button (disabled) Buat foto keluarga
+			59 text Tambahkan foto untuk tiap wajah dulu, ya.
+			60 container
+				61 text Dengan melanjutkan, kamu menyetujui 
+				62 link Description: ketentuan penggunaan, Value: 127.0.0.1:8766/#/terms
+				63 text . Koreksi tanpa batas jumlah selama layanan tersedia; AI bisa mengubah wajah.
+
+The focused UI element is 13 container main

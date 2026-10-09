@@ -1,0 +1,401 @@
+{
+  "count": 75,
+  "by_rule": {
+    "gray-on-color": 9,
+    "ai-color-palette": 1,
+    "low-contrast": 2,
+    "undersized-ui-text": 40,
+    "tiny-text": 7,
+    "extreme-negative-tracking": 1,
+    "kicker-above-heading": 9,
+    "cream-palette": 5,
+    "skipped-heading": 1
+  },
+  "by_file": {
+    "b-home-detector-input.html": [
+      {
+        "rule": "gray-on-color",
+        "snippet": "text #4c4843 on bg #e5ef8a",
+        "line": 0
+      },
+      {
+        "rule": "gray-on-color",
+        "snippet": "text #4c4843 on bg #cbbcf1",
+        "line": 0
+      },
+      {
+        "rule": "gray-on-color",
+        "snippet": "text #4c4843 on bg #ffc1ac",
+        "line": 0
+      },
+      {
+        "rule": "ai-color-palette",
+        "snippet": "Purple/violet text (#4e356f) on heading",
+        "line": 0
+      },
+      {
+        "rule": "low-contrast",
+        "snippet": ":hover state 2.0:1 (need 4.5:1) \u2014 text #f5f3ec on #ff936f",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Beranda\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Template\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Foto saya\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Panduan\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Bantuan\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "tiny-text",
+        "snippet": "11.52px body text",
+        "line": 0
+      },
+      {
+        "rule": "extreme-negative-tracking",
+        "snippet": "letter-spacing: -0.05em \u2014 \"Lagi jauh?Foto barengtetap bisa.\"",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.4px functional text \"Mulai gratis Nggak perlu kartu pembayara\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"Hari spesial, orang-orang favorit.\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "tiny-text",
+        "snippet": "9.12px body text",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.12px functional text \"Ini contoh template AI, ya. Hasil fotomu\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "tiny-text",
+        "snippet": "11.68px body text",
+        "line": 0
+      },
+      {
+        "rule": "tiny-text",
+        "snippet": "11.68px body text",
+        "line": 0
+      },
+      {
+        "rule": "tiny-text",
+        "snippet": "11.68px body text",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"MOMEN APA HARI INI?\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"NGGAK HARUS RIBET.\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.4px functional text \"Contoh template AI\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"FOTOMU. ATURANMU.\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"SEBELUM MULAI\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"MOMEN KECIL, ARTI BESAR\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "kicker-above-heading",
+        "snippet": "kicker \"MOMEN APA HARI INI?\" above h2 \"Pilih momennya.Yuk, bikin fotonya.\"",
+        "line": 0
+      },
+      {
+        "rule": "kicker-above-heading",
+        "snippet": "kicker \"NGGAK HARUS RIBET.\" above h2 \"Tiga langkah.Satu kenangan baru.\"",
+        "line": 0
+      },
+      {
+        "rule": "kicker-above-heading",
+        "snippet": "kicker \"FOTOMU. ATURANMU.\" above h2 \"Foto pribadimu,kamu yangpegang kendali.\"",
+        "line": 0
+      },
+      {
+        "rule": "kicker-above-heading",
+        "snippet": "kicker \"SEBELUM MULAI\" above h2 \"Masih adayang bikin penasaran?\"",
+        "line": 0
+      },
+      {
+        "rule": "kicker-above-heading",
+        "snippet": "kicker \"MOMEN KECIL, ARTI BESAR\" above h2 \"Mau foto barengsiapa hari ini?\"",
+        "line": 0
+      },
+      {
+        "rule": "cream-palette",
+        "snippet": "cream/beige page background rgb(245, 243, 236)",
+        "line": 0
+      }
+    ],
+    "b-catalog-detector-input.html": [
+      {
+        "rule": "gray-on-color",
+        "snippet": "text #4c4843 on bg #e5ef8a",
+        "line": 0
+      },
+      {
+        "rule": "gray-on-color",
+        "snippet": "text #4c4843 on bg #cbbcf1",
+        "line": 0
+      },
+      {
+        "rule": "gray-on-color",
+        "snippet": "text #4c4843 on bg #ffc1ac",
+        "line": 0
+      },
+      {
+        "rule": "gray-on-color",
+        "snippet": "text #4c4843 on bg #ffc1ac",
+        "line": 0
+      },
+      {
+        "rule": "gray-on-color",
+        "snippet": "text #4c4843 on bg #e5ef8a",
+        "line": 0
+      },
+      {
+        "rule": "gray-on-color",
+        "snippet": "text #4c4843 on bg #cbbcf1",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Beranda\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Template\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Foto saya\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Panduan\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Bantuan\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"MAU FOTO BUAT MOMEN APA?\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "kicker-above-heading",
+        "snippet": "kicker \"MAU FOTO BUAT MOMEN APA?\" above h1 \"Mau simpan momen apa?\"",
+        "line": 0
+      },
+      {
+        "rule": "cream-palette",
+        "snippet": "cream/beige page background rgb(245, 243, 236)",
+        "line": 0
+      }
+    ],
+    "b-studio-detector-input.html": [
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Beranda\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Template\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Foto saya\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Panduan\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Bantuan\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"PREVIEW TEMPLATE\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"TEMPLATE PILIHAN\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "tiny-text",
+        "snippet": "11.52px body text",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"SIAPA SAJA YANG IKUT FOTO?\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "tiny-text",
+        "snippet": "11.84px body text",
+        "line": 0
+      },
+      {
+        "rule": "kicker-above-heading",
+        "snippet": "kicker \"SIAPA SAJA YANG IKUT FOTO?\" above h2 \"Tambahkan foto\"",
+        "line": 0
+      },
+      {
+        "rule": "cream-palette",
+        "snippet": "cream/beige page background rgb(245, 243, 236)",
+        "line": 0
+      }
+    ],
+    "b-guide-detector-input.html": [
+      {
+        "rule": "low-contrast",
+        "snippet": "3.5:1 (need 4.5:1) \u2014 text #a17450 on #f8ece2",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Beranda\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Template\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Foto saya\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Panduan\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Bantuan\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"PANDUAN SINGKAT\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "kicker-above-heading",
+        "snippet": "kicker \"PANDUAN SINGKAT\" above h1 \"Biar hasilnya oke, mulai dari fotonya.\"",
+        "line": 0
+      },
+      {
+        "rule": "cream-palette",
+        "snippet": "cream/beige page background rgb(245, 243, 236)",
+        "line": 0
+      },
+      {
+        "rule": "skipped-heading",
+        "snippet": "<h1> \"Biar hasilnya oke, mulai dari fotonya.\" followed by <h3> \"Pilih suasana yang pas\" (missing h2)",
+        "line": 0
+      }
+    ],
+    "b-privacy-detector-input.html": [
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Beranda\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Template\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Foto saya\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Panduan\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "9.6px functional text \"Bantuan\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "undersized-ui-text",
+        "snippet": "10.88px functional text \"FOTOMU DALAM KENDALIMU\" (below 11px floor)",
+        "line": 0
+      },
+      {
+        "rule": "kicker-above-heading",
+        "snippet": "kicker \"FOTOMU DALAM KENDALIMU\" above h1 \"Privasi dan masa simpan\"",
+        "line": 0
+      },
+      {
+        "rule": "cream-palette",
+        "snippet": "cream/beige page background rgb(245, 243, 236)",
+        "line": 0
+      }
+    ]
+  }
+}

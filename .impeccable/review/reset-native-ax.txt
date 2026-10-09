@@ -1,0 +1,23 @@
+Browser tab: 2, Title: "Buat kata sandi baru — MomenRia", URL: "http://127.0.0.1:8766/accounts/password/reset/".
+1 AXWebArea Buat kata sandi baru — MomenRia, URL: 127.0.0.1:8766/accounts/password/reset/
+	2 link Description: Lewati ke konten, Value: 127.0.0.1:8766/accounts/password/reset/#account-main
+	3 container
+		4 link Description: MomenRia ., Value: 127.0.0.1:8766/
+		5 link Description: Lihat template ↗, Value: 127.0.0.1:8766/#/templates
+	6 container account-main
+		7 heading Lupa kata sandi?, Value: 1
+			8 text Lupa kata sandi?
+		9 text Masukkan email yang kamu pakai untuk daftar. Kalau emailnya terdaftar, kami kirim link untuk bikin kata sandi baru.
+		10 container
+			11 text Email:
+			12 text field (settable) Email:
+			13 button Kirim link reset
+		14 link Description: Kembali ke halaman masuk, Value: 127.0.0.1:8766/accounts/login/
+		15 container
+			16 link Description: Bantuan akses akun, Value: 127.0.0.1:8766/#/support
+			17 text  · 
+			18 link Description: Privasi, Value: 127.0.0.1:8766/#/privacy
+			19 text  · 
+			20 link Description: Ketentuan penggunaan, Value: 127.0.0.1:8766/#/terms
+
+The focused UI element is 1 AXWebArea Buat kata sandi baru — MomenRia, URL: 127.0.0.1:8766/accounts/password/reset/

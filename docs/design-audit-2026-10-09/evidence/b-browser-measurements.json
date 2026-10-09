@@ -1,0 +1,78 @@
+{
+  "tool": "CUA native IAB; read-only DOM evaluation",
+  "viewports": [
+    {
+      "width": 390,
+      "height": 844,
+      "clientWidth": 375,
+      "scrollWidth": 375,
+      "pages": [
+        "home",
+        "catalog",
+        "studio",
+        "support"
+      ]
+    },
+    {
+      "width": 320,
+      "height": 800,
+      "clientWidth": 305,
+      "scrollWidth": 305,
+      "pages": [
+        "support",
+        "catalog",
+        "studio"
+      ]
+    }
+  ],
+  "focus": {
+    "dialogOpen": "Tutup close button",
+    "tabNext": "file input",
+    "outline": "rgb(36,36,35) solid 3px",
+    "outlineOffset": "5px",
+    "escape": "returned to Tambahkan foto wajah 1"
+  },
+  "upload": {
+    "dialogWidthAt390": 337,
+    "fileInputWidth": 301,
+    "fileInputHeight": 51.59375,
+    "consentInputWidth": 20,
+    "consentInputHeight": 20,
+    "consentUsesFullLabel": true,
+    "faceTargets": {
+      "width": 44,
+      "height": 44
+    },
+    "emptySubmit": "Please select a file.; file control received focus"
+  },
+  "support": {
+    "error": "Pilih proyek dulu sebelum memberi staf akses ke fotonya, ya.",
+    "role": "alert",
+    "formValuesPreserved": true,
+    "submissionBlockedBeforeAPI": true
+  },
+  "search": {
+    "empty": "0 template ditemukan",
+    "emptyRecovery": "Hapus filter restores six collections and 28 templates",
+    "focusRetainedWhileTyping": true
+  },
+  "colors": {
+    "placeholder": "rgb(128,136,121)",
+    "inputBackground": "rgb(255,255,255)",
+    "catalogHeadingSizeAt390": "42.4px",
+    "collectionHeadingSizeAt390": "25.6px",
+    "eyebrowSize": "10.88px"
+  },
+  "touch": {
+    "mobileNavWidthAt390": 67,
+    "mobileNavHeight": 56,
+    "loginLinkWidth": 36.84375,
+    "loginLinkHeight": 44
+  },
+  "limits": [
+    "performance.getEntriesByType unavailable in read-only DOM evaluator",
+    "mutable JS evaluation not exposed; no overlay injected",
+    "no real screen reader or 200 percent text zoom test",
+    "viewport override reset"
+  ]
+}

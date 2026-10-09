@@ -1,0 +1,14 @@
+.env
+.superpowers/
+.git
+.venv
+__pycache__
+*.pyc
+*.sqlite3
+private-media
+staticfiles
+MomenRia_Product_Requirements_v1.docx
+node_modules/
+playwright-report/
+test-results/
+tests/e2e/generated/

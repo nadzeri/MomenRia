@@ -1,0 +1,485 @@
+[
+  {
+    "slug": "natal",
+    "name": "Natal di Rumah",
+    "occasion": "Natal",
+    "people": 3,
+    "description": "Natal di rumah, bareng orang tersayang dan pohon yang berkilau.",
+    "attire": "Rajut merah dan hijau",
+    "scene": "Christmas at home: father on left, mother on right and eight-year-old daughter centered slightly forward. Cream living room, decorated Christmas tree, red and forest-green knit outfits.",
+    "faces": [
+      [
+        0.37693,
+        0.25469
+      ],
+      [
+        0.52183,
+        0.5005
+      ],
+      [
+        0.65986,
+        0.33925
+      ]
+    ]
+  },
+  {
+    "slug": "imlek",
+    "name": "Imlek Penuh Harapan",
+    "occasion": "Imlek",
+    "people": 3,
+    "description": "Tahun baru, harapan baru. Yuk, foto bareng di bawah lentera merah.",
+    "attire": "Busana merah elegan",
+    "scene": "Chinese New Year family: two Chinese Indonesian parents and their young son, scarlet festive shirts and dress, lanterns, plum blossoms, warm elegant interior, subtle gold accents.",
+    "faces": [
+      [
+        0.3889,
+        0.26762
+      ],
+      [
+        0.50597,
+        0.46303
+      ],
+      [
+        0.64596,
+        0.40792
+      ]
+    ]
+  },
+  {
+    "slug": "ramadan",
+    "name": "Senja Ramadan",
+    "occasion": "Ramadan",
+    "people": 2,
+    "description": "Senja Ramadan paling enak dinikmati bareng. Simpan momennya di sini.",
+    "attire": "Baju koko dan hijab krem",
+    "scene": "Ramadan couple: adult man in cream baju koko and adult woman in modest cream dress and hijab seated in elegant courtyard with Islamic geometric arches, glowing fanous lanterns, late afternoon light.",
+    "faces": [
+      [
+        0.43058,
+        0.26552
+      ],
+      [
+        0.58171,
+        0.32929
+      ]
+    ]
+  },
+  {
+    "slug": "idul-adha",
+    "name": "Idul Adha Bersama",
+    "occasion": "Idul Adha",
+    "people": 4,
+    "description": "Kumpul di halaman rumah saat Idul Adha. Yuk, foto bareng keluarga.",
+    "attire": "Busana muslim putih dan olive",
+    "scene": "Eid al-Adha family portrait: father, mother wearing hijab, young boy and young girl. White and olive modest festive clothes, garden courtyard with elegant Islamic-inspired arches, morning light, no animals.",
+    "faces": [
+      [
+        0.3772,
+        0.19811
+      ],
+      [
+        0.42812,
+        0.56078
+      ],
+      [
+        0.54281,
+        0.32127
+      ],
+      [
+        0.64737,
+        0.66329
+      ]
+    ]
+  },
+  {
+    "slug": "galungan",
+    "name": "Galungan di Bali",
+    "occasion": "Galungan",
+    "people": 2,
+    "description": "Hari Galungan, halaman Bali, dan penjor. Lengkap buat foto bareng.",
+    "attire": "Kebaya Bali dan udeng",
+    "scene": "Galungan Balinese adult couple, woman in modest ivory kebaya and gold sash, man in white shirt and udeng headdress, carved Balinese courtyard gate, decorative penjor bamboo poles arching in background.",
+    "faces": [
+      [
+        0.37654,
+        0.34841
+      ],
+      [
+        0.55544,
+        0.28302
+      ]
+    ]
+  },
+  {
+    "slug": "waisak",
+    "name": "Waisak Penuh Damai",
+    "occasion": "Waisak",
+    "people": 2,
+    "description": "Suasana Waisak yang tenang buat momen hangat bersama orang tersayang.",
+    "attire": "Busana putih sederhana",
+    "scene": "Vesak Indonesian adult couple in simple white long-sleeve outfits, serene garden with distant Borobudur-inspired stone stupas and warm lantern decor, golden dawn. Faces frontal, no worship gestures.",
+    "faces": [
+      [
+        0.40961,
+        0.34646
+      ],
+      [
+        0.59555,
+        0.49068
+      ]
+    ]
+  },
+  {
+    "slug": "kemerdekaan",
+    "name": "Merah Putih Bersama",
+    "occasion": "Hari Kemerdekaan",
+    "people": 4,
+    "description": "Merah putih, senyum lebar. Yuk, rayakan 17 Agustus bareng keluarga!",
+    "attire": "Kasual merah dan putih",
+    "scene": "Indonesian Independence Day family: father, mother, son and daughter in coordinated red and white casual clothes; tidy garden with Indonesian red-over-white flag bunting, bright cheerful morning.",
+    "faces": [
+      [
+        0.39847,
+        0.5622
+      ],
+      [
+        0.40303,
+        0.24898
+      ],
+      [
+        0.59893,
+        0.32034
+      ],
+      [
+        0.73489,
+        0.62979
+      ]
+    ]
+  },
+  {
+    "slug": "tahun-baru",
+    "name": "Cerita Tahun Baru",
+    "occasion": "Tahun Baru",
+    "people": 2,
+    "description": "Tahun baru, foto baru. Mulai cerita berikutnya berdua, yuk.",
+    "attire": "Busana pesta navy",
+    "scene": "New Year celebration adult couple in elegant navy evening clothes, gold string lights and distant fireworks viewed from terrace, soft flattering warm light on faces, sophisticated festive atmosphere.",
+    "faces": [
+      [
+        0.43273,
+        0.24421
+      ],
+      [
+        0.57555,
+        0.37337
+      ]
+    ]
+  },
+  {
+    "slug": "ulang-tahun-anak",
+    "name": "Ulang Tahun Si Kecil",
+    "occasion": "Ulang Tahun",
+    "people": 3,
+    "description": "Ada balon, ada pelukan, ada si kecil yang tambah besar. Selamat ulang tahun!",
+    "attire": "Kasual pastel senada",
+    "scene": "Birthday party family of THREE: five-year-old child centered with mother and father, pastel mint peach balloon arch, simple birthday cake on table, parents' faces separate and clearly visible, bright joyful natural light.",
+    "faces": [
+      [
+        0.36045,
+        0.36163
+      ],
+      [
+        0.49632,
+        0.49525
+      ],
+      [
+        0.64662,
+        0.30926
+      ]
+    ]
+  },
+  {
+    "slug": "sweet-seventeen",
+    "name": "Sweet Seventeen",
+    "occasion": "Ulang Tahun",
+    "people": 1,
+    "description": "Akhirnya 17! Rayakan dengan bunga, kue, dan warna pastel favoritmu.",
+    "attire": "Gaun pesta pastel",
+    "scene": "Solo Indonesian girl celebrating her seventeenth birthday, modest pastel lilac party dress, small cake and lilac balloon arrangement, warm cream studio, tasteful age-appropriate portrait, joyful smile.",
+    "faces": [
+      [
+        0.42151,
+        0.28459
+      ]
+    ]
+  },
+  {
+    "slug": "prewedding-taman",
+    "name": "Pre-wedding di Taman",
+    "occasion": "Pre-wedding",
+    "people": 2,
+    "description": "Sebelum hari besar, foto berdua dulu di taman dengan cahaya sore.",
+    "attire": "Gaun ivory dan setelan beige",
+    "scene": "Pre-wedding adult Indonesian couple standing in green botanical garden, ivory modest flowing dress and beige suit, both faces turned toward camera, light floral bouquet, romantic late-afternoon sun.",
+    "faces": [
+      [
+        0.44615,
+        0.18374
+      ],
+      [
+        0.54307,
+        0.27572
+      ]
+    ]
+  },
+  {
+    "slug": "prewedding-jawa",
+    "name": "Pre-wedding Jawa",
+    "occasion": "Pre-wedding",
+    "people": 2,
+    "description": "Kebaya, beskap, dan pendopo Jawa. Pas buat cerita kalian berdua.",
+    "attire": "Kebaya dan beskap Jawa",
+    "scene": "Pre-wedding adult Javanese Indonesian couple, woman in ivory kebaya with batik skirt, man in dark beskap jacket batik cloth and blangkon, elegant timber joglo pendopo, both face camera.",
+    "faces": [
+      [
+        0.43248,
+        0.33608
+      ],
+      [
+        0.5498,
+        0.23197
+      ]
+    ]
+  },
+  {
+    "slug": "bayi-baru-lahir",
+    "name": "Halo, Dunia",
+    "occasion": "Bayi",
+    "people": 1,
+    "description": "Halo, si kecil! Simpan momen awalnya dengan bedong krem yang lembut.",
+    "attire": "Bedong krem",
+    "scene": "Exactly ONE newborn Indonesian baby sleeping safely on back on flat cream blanket, safely swaddled in cream cotton, face fully unobstructed, overhead portrait, soft studio window light, no props near face, no adults.",
+    "faces": [
+      [
+        0.474,
+        0.38353
+      ]
+    ]
+  },
+  {
+    "slug": "bayi-enam-bulan",
+    "name": "Senyum Pertama",
+    "occasion": "Bayi",
+    "people": 1,
+    "description": "Si kecil makin besar, senyumnya makin banyak. Yuk, simpan momen ini.",
+    "attire": "Romper rajut lembut",
+    "scene": "Exactly ONE six-month-old Indonesian baby lying safely on back on flat warm oatmeal blanket looking at overhead camera smiling, fully clothed in soft sage knitted romper, no adults, no obstructing props, bright soft natural light.",
+    "faces": [
+      [
+        0.51031,
+        0.28786
+      ]
+    ]
+  },
+  {
+    "slug": "maternity",
+    "name": "Menanti Kehadiranmu",
+    "occasion": "Maternity",
+    "people": 2,
+    "description": "Sambil menunggu si kecil, simpan dulu momen hangat kalian berdua.",
+    "attire": "Gaun maternity dan linen krem",
+    "scene": "Maternity portrait of adult pregnant Indonesian woman in modest flowing cream maternity dress and adult male partner in linen cream shirt, standing side by side touching hands over bump, both faces frontal, warm minimalist studio with gauze curtains.",
+    "faces": [
+      [
+        0.42197,
+        0.30102
+      ],
+      [
+        0.56259,
+        0.17879
+      ]
+    ]
+  },
+  {
+    "slug": "pernikahan",
+    "name": "Janji Seumur Hidup",
+    "occasion": "Pernikahan",
+    "people": 2,
+    "description": "Hari bahagia kalian, dengan latar pelaminan yang manis buat dikenang.",
+    "attire": "Kebaya pengantin dan beskap putih",
+    "scene": "Indonesian wedding adult bride and groom, ivory bridal kebaya modest dress and white beskap, jasmine hair ornament, refined ivory floral pelaminan backdrop, both looking toward camera, medium portrait.",
+    "faces": [
+      [
+        0.38762,
+        0.20979
+      ],
+      [
+        0.61334,
+        0.32018
+      ]
+    ]
+  },
+  {
+    "slug": "anniversary",
+    "name": "Bertumbuh Bersama",
+    "occasion": "Anniversary",
+    "people": 2,
+    "description": "Sudah sejauh ini bareng. Yuk, rayakan dengan foto berdua lagi.",
+    "attire": "Busana formal earth tone",
+    "scene": "Anniversary portrait of middle-aged Indonesian married couple, woman in terracotta modest dress, man in brown linen blazer, small white floral arrangement, warm elegant wood-paneled studio, relaxed affection, both facing camera.",
+    "faces": [
+      [
+        0.43107,
+        0.34462
+      ],
+      [
+        0.5692,
+        0.22563
+      ]
+    ]
+  },
+  {
+    "slug": "wisuda-ui",
+    "name": "Wisuda UI",
+    "occasion": "Wisuda",
+    "people": 1,
+    "description": "Akhirnya lulus UI! Foto dengan ilustrasi Perpustakaan Crystal of Knowledge, Depok, yuk.",
+    "attire": "Toga hitam dan selempang netral",
+    "university": "Universitas Indonesia",
+    "backdrop": "Perpustakaan Crystal of Knowledge, Depok",
+    "source": "https://simak.ui.ac.id/perpustakaan/",
+    "scene": "Solo young adult Indonesian woman graduate in plain black academic gown, mortarboard and neutral cream stole, holding simple diploma tube without text. Subject in foreground to right of center, waist-up portrait, faceted stone-and-glass library building with grass-covered sloping roof beside campus lake visible as campus-inspired background. Broad enough framing to see building, soft morning light. Architecture is an illustrative interpretation, no university logos or official insignia.",
+    "faces": [
+      [
+        0.64435,
+        0.32451
+      ]
+    ]
+  },
+  {
+    "slug": "wisuda-ugm",
+    "name": "Wisuda UGM",
+    "occasion": "Wisuda",
+    "people": 1,
+    "description": "Akhirnya lulus UGM! Simpan momen banggamu dengan ilustrasi Balairung, Bulaksumur.",
+    "attire": "Toga hitam dan selempang netral",
+    "university": "Universitas Gadjah Mada",
+    "backdrop": "Balairung, Bulaksumur",
+    "source": "https://etd.repository.ugm.ac.id/penelitian/detail/205133",
+    "scene": "Solo young adult Indonesian man graduate in plain black academic gown, mortarboard and neutral cream stole, holding simple diploma tube without text. Subject in foreground to right of center, waist-up portrait, white Balairung main building in Bulaksumur with broad columned portico and terracotta tiled roof visible as campus-inspired background. Broad enough framing to see building, soft morning light. Architecture is an illustrative interpretation, no university logos or official insignia.",
+    "faces": [
+      [
+        0.63289,
+        0.34024
+      ]
+    ]
+  },
+  {
+    "slug": "wisuda-itb",
+    "name": "Wisuda ITB",
+    "occasion": "Wisuda",
+    "people": 1,
+    "description": "Lulus ITB, saatnya foto! Pilih latar ilustrasi Aula Barat, Kampus Ganesha.",
+    "attire": "Toga hitam dan selempang netral",
+    "university": "Institut Teknologi Bandung",
+    "backdrop": "Aula Barat, Kampus Ganesha",
+    "source": "https://ditsp.itb.ac.id/bangunan/aula-barat/",
+    "scene": "Solo young adult Indonesian woman graduate in plain black academic gown, mortarboard and neutral cream stole, holding simple diploma tube without text. Subject in foreground to right of center, waist-up portrait, Aula Barat heritage building, steep distinctive layered dark curved traditional roof, stone base and tropical trees visible as campus-inspired background. Broad enough framing to see building, soft morning light. Architecture is an illustrative interpretation, no university logos or official insignia.",
+    "faces": [
+      [
+        0.63323,
+        0.43072
+      ]
+    ]
+  },
+  {
+    "slug": "wisuda-ipb",
+    "name": "Wisuda IPB",
+    "occasion": "Wisuda",
+    "people": 1,
+    "description": "Lulus IPB, senyum dulu! Ada ilustrasi Grha Widya Wisuda, Dramaga, buat latarmu.",
+    "attire": "Toga hitam dan selempang netral",
+    "university": "IPB University",
+    "backdrop": "Grha Widya Wisuda, Dramaga",
+    "source": "https://www.ipb.ac.id/news/index/2025/05/rektor-ipb-university-ajak-wisudawan-jadi-agen-perubahan-dan-pemimpin-masa-depan/",
+    "scene": "Solo young adult Indonesian man graduate in plain black academic gown, mortarboard and neutral cream stole, holding simple diploma tube without text. Subject in foreground to right of center, waist-up portrait, Grha Widya Wisuda auditorium in Dramaga, broad pitched reddish-brown roof, open columned entrance, lush Bogor trees visible as campus-inspired background. Broad enough framing to see building, soft morning light. Architecture is an illustrative interpretation, no university logos or official insignia.",
+    "faces": [
+      [
+        0.62908,
+        0.32717
+      ]
+    ]
+  },
+  {
+    "slug": "wisuda-its",
+    "name": "Wisuda ITS",
+    "occasion": "Wisuda",
+    "people": 1,
+    "description": "Akhirnya lulus ITS! Rayakan dengan foto berlatar ilustrasi Rektorat, Sukolilo.",
+    "attire": "Toga hitam dan selempang netral",
+    "university": "Institut Teknologi Sepuluh Nopember",
+    "backdrop": "Rektorat, Sukolilo",
+    "source": "https://www.its.ac.id/uld/peta-aksesbilitas/sarana-prasarana-aksesbiltas-gedung-rektorat/",
+    "scene": "Solo young adult Indonesian woman graduate in plain black academic gown, mortarboard and neutral cream stole, holding simple diploma tube without text. Subject in foreground to right of center, waist-up portrait, three-storey ITS rectorate building in Sukolilo with terracotta pitched roof, light facade, formal landscaped lawn visible as campus-inspired background. Broad enough framing to see building, soft morning light. Architecture is an illustrative interpretation, no university logos or official insignia.",
+    "faces": [
+      [
+        0.67233,
+        0.31667
+      ]
+    ]
+  },
+  {
+    "slug": "wisuda-unair",
+    "name": "Wisuda UNAIR",
+    "occasion": "Wisuda",
+    "people": 1,
+    "description": "Lulus UNAIR, waktunya rayakan! Foto dengan ilustrasi gedung bersejarah Kampus A, Surabaya.",
+    "attire": "Toga hitam dan selempang netral",
+    "university": "Universitas Airlangga",
+    "backdrop": "Gedung bersejarah Kampus A, Surabaya",
+    "source": "https://unair.ac.id/akses-pintu-masuk-fk-unair-dikembalikan-ke-era-peninggalan-belanda/",
+    "scene": "Solo young adult Indonesian man graduate in plain black academic gown, mortarboard and neutral cream stole, holding simple diploma tube without text. Subject in foreground to right of center, waist-up portrait, historic white colonial medical faculty building at Campus A, terracotta roof and rows of columns, tropical gardens visible as campus-inspired background. Broad enough framing to see building, soft morning light. Architecture is an illustrative interpretation, no university logos or official insignia.",
+    "faces": [
+      [
+        0.58784,
+        0.29287
+      ]
+    ]
+  },
+  {
+    "slug": "wisuda-undip",
+    "name": "Wisuda UNDIP",
+    "occasion": "Wisuda",
+    "people": 1,
+    "description": "Akhirnya lulus UNDIP! Simpan momenmu dengan ilustrasi Widya Puraya, Tembalang.",
+    "attire": "Toga hitam dan selempang netral",
+    "university": "Universitas Diponegoro",
+    "backdrop": "Widya Puraya, Tembalang",
+    "source": "https://mkep.fk.undip.ac.id/widya-puraya/",
+    "scene": "Solo young adult Indonesian woman graduate in plain black academic gown, mortarboard and neutral cream stole, holding simple diploma tube without text. Subject in foreground to right of center, waist-up portrait, Widya Puraya main building in Tembalang, grand white facade with large central traditional tiered terracotta roof, landscaped lawn visible as campus-inspired background. Broad enough framing to see building, soft morning light. Architecture is an illustrative interpretation, no university logos or official insignia.",
+    "faces": [
+      [
+        0.6346,
+        0.39319
+      ]
+    ]
+  },
+  {
+    "slug": "wisuda-unpad",
+    "name": "Wisuda UNPAD",
+    "occasion": "Wisuda",
+    "people": 1,
+    "description": "Lulus UNPAD, foto dulu! Ada ilustrasi Rektorat, Jatinangor, buat momen banggamu.",
+    "attire": "Toga hitam dan selempang netral",
+    "university": "Universitas Padjadjaran",
+    "backdrop": "Rektorat, Jatinangor",
+    "source": "https://museum.unpad.ac.id/rektorat-2/rektorat-jatinangor/",
+    "scene": "Solo young adult Indonesian man graduate in plain black academic gown, mortarboard and neutral cream stole, holding simple diploma tube without text. Subject in foreground to right of center, waist-up portrait, distinctive circular rectorate building in Jatinangor with white columns and broad terracotta conical roof, green lawn visible as campus-inspired background. Broad enough framing to see building, soft morning light. Architecture is an illustrative interpretation, no university logos or official insignia.",
+    "faces": [
+      [
+        0.64074,
+        0.33267
+      ]
+    ]
+  }
+]

@@ -1,0 +1,114 @@
+const { test, expect } = require('@playwright/test');
+const path = require('node:path');
+const fs = require('node:fs');
+
+test('global search opens matching templates directly and restores collections when cleared', async ({ page }) => {
+  await page.goto('/#/templates');
+  await expect(page.locator('.moment-card')).toHaveCount(6);
+  await page.getByLabel('Cari template').fill('wisuda ui');
+  await expect(page.locator('.template-card')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Pilih Wisuda UI', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Wisuda UI', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Wisuda UI', exact: true })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Navigasi utama' }).getByRole('link', { name: 'Template', exact: true }).click();
+  await page.getByLabel('Cari template').fill('');
+  await expect(page.locator('.moment-card')).toHaveCount(6);
+  await page.getByLabel('Jumlah orang').selectOption('1');
+  await expect(page.locator('.template-card').first()).toBeVisible();
+  expect(await page.locator('.template-card .photo-tag').allTextContents()).toEqual(expect.arrayContaining(['1 orang']));
+  await expect(page.locator('.moment-card')).toHaveCount(0);
+});
+
+test('batch upload survives invalid files and a lost assignment response, compares versions and exports', async ({ page }, testInfo) => {
+  test.setTimeout(120000);
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/accounts/login/');
+  await page.locator('[name="login"]').fill(`competitive-${testInfo.project.name}@example.com`);
+  await page.locator('[name="password"]').fill('Portrait-test-2026!');
+  await page.getByRole('button', { name: 'Masuk', exact: true }).click();
+  await page.goto('/#/templates/hari-raya');
+  await page.getByRole('link', { name: 'Pilih Lebaran Bersama', exact: true }).click();
+  await page.getByRole('button', { name: 'Tambah beberapa foto sekaligus' }).click();
+  await page.getByLabel('Foto untuk keluarga').setInputFiles([
+    { name: 'left.jpg', mimeType: 'image/jpeg', buffer: fs.readFileSync(path.join(__dirname, 'generated/left.jpg')) },
+    { name: 'invalid.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('not an image') },
+  ]);
+  const firstSlot = await page.getByLabel('Posisi foto 1').inputValue();
+  const secondSlot = await page.getByLabel('Posisi foto 2').inputValue();
+  await page.getByLabel('Posisi foto 2').selectOption(firstSlot);
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Cek dan pasang semua foto' }).click();
+  await expect(page.locator('#batch-upload-form .form-error')).toContainText('posisi wajah yang berbeda');
+  await page.getByLabel('Posisi foto 2').selectOption(secondSlot);
+  await page.getByRole('button', { name: 'Cek dan pasang semua foto' }).click();
+  await expect(page.locator('#batch-status')).toContainText('1 dari 2 foto tersimpan');
+  await expect(page.getByLabel('Posisi foto 1')).toBeDisabled();
+  await expect(page.locator('#batch-upload-form .form-error')).toBeVisible();
+  const partial = (await (await page.request.get('/api/v1/projects')).json()).items[0];
+  expect(Object.keys(partial.assignments)).toHaveLength(1);
+  const firstSource = partial.assignments[firstSlot];
+  await page.getByLabel('Foto untuk keluarga').setInputFiles(path.join(__dirname, 'generated/right.jpg'));
+  await expect(page.getByLabel('Posisi foto 1')).toHaveValue(secondSlot);
+  let assignmentAttempts = 0;
+  await page.route(`**/slots/${secondSlot}`, async route => {
+    assignmentAttempts++;
+    await route.fetch();
+    await route.abort('connectionreset');
+  });
+  await page.getByRole('button', { name: 'Cek dan pasang semua foto' }).click();
+  await expect(page.locator('#batch-upload-form .form-error')).toContainText('Koneksi putus');
+  await page.getByRole('button', { name: 'Cek dan pasang semua foto' }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  expect(assignmentAttempts).toBe(1);
+  await page.unroute(`**/slots/${secondSlot}`);
+  await page.reload();
+  await expect(page.locator('.upload-tile.ready')).toHaveCount(2);
+  const ready = (await (await page.request.get(`/api/v1/projects/${partial.id}`)).json());
+  expect(ready.assignments[firstSlot]).toBe(firstSource);
+  expect(ready.sources).toHaveLength(2);
+  await page.getByRole('button', { name: 'Buat foto keluarga' }).click();
+  await expect(page.getByRole('heading', { name: 'Yuk, cek hasil fotomu', exact: true })).toBeVisible({ timeout: 30000 });
+  const originalResult = await page.locator('[data-greeting]').getAttribute('data-greeting');
+  await page.getByRole('button', { name: 'Tambah ucapan', exact: true }).click();
+  await page.getByLabel('Ucapan', { exact: true }).fill('Selalu dekat di hati');
+  await page.getByRole('button', { name: 'Simpan versi baru' }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.getByRole('button', { name: 'Bandingkan versi', exact: true }).click();
+  const selectedResult = await page.getByLabel('Hasil pilihan').inputValue();
+  await expect(page.getByLabel('Pembanding')).toHaveValue(originalResult);
+  await page.getByLabel('Hasil pilihan').selectOption(originalResult);
+  await expect(page.locator('[data-compare-image]').nth(1)).toHaveAttribute('src', `/api/v1/results/${originalResult}/preview`);
+  await page.getByLabel('Hasil pilihan').selectOption(selectedResult);
+  const face = (await page.getByLabel('Bagian foto').locator('option').nth(1).getAttribute('value'));
+  await page.getByLabel('Bagian foto').selectOption(face);
+  const crops = page.locator('[data-compare-crop]');
+  await expect(crops.nth(0)).toBeVisible();
+  await expect(crops.nth(1)).toBeVisible();
+  await expect(crops.nth(1).locator('image')).toHaveAttribute('href', new RegExp(`/api/v1/results/${selectedResult}/preview$`));
+  expect(await crops.nth(0).evaluate(svg => svg.getBoundingClientRect().width)).toBeGreaterThan(180);
+  await page.screenshot({ path: testInfo.outputPath('version-comparison.png') });
+  await page.keyboard.press('Escape');
+  const compared = await (await page.request.get(`/api/v1/projects/${partial.id}`)).json();
+  expect(compared.selected_result_id).toBe(selectedResult);
+  await page.getByRole('button', { name: 'Simpan foto' }).click();
+  for (const format of ['square', 'portrait', 'story']) {
+    await page.getByLabel('Format foto', { exact: true }).selectOption(format);
+    await expect(page.locator('#export-preview')).toHaveAttribute('src', `/api/v1/results/${selectedResult}/preview?format=${format}`);
+    await expect.poll(() => page.locator('#export-preview').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+    const dimensions = await page.locator('#export-preview').evaluate(image => [image.naturalWidth, image.naturalHeight]);
+    expect(dimensions).toEqual({square:[768,768], portrait:[576,768], story:[432,768]}[format]);
+  }
+  await page.screenshot({ path: testInfo.outputPath('story-export.png') });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  const downloadEvent = page.waitForEvent('download');
+  await page.getByRole('link', { name: 'Download preview' }).click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toBe(`momenria-preview-${selectedResult}-story.jpg`);
+  expect(await download.failure()).toBeNull();
+  const exported = await (await page.request.get(`/api/v1/projects/${partial.id}`)).json();
+  expect(exported.results).toHaveLength(compared.results.length);
+  expect(exported.jobs).toHaveLength(compared.jobs.length);
+  expect(exported.results.map(result => result.expires_at)).toEqual(compared.results.map(result => result.expires_at));
+  expect(errors).toEqual([]);
+});

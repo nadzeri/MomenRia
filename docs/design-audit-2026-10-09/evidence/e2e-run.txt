@@ -1,0 +1,6 @@
+Audit run: 9 October 2026 (Asia/Jakarta)
+Command: npm run test:e2e
+Result: 34 passed (1.9m), exit code 0
+Projects: desktop Chromium, mobile WebKit
+Sources: tests/e2e/appearance.spec.js, launch.spec.js, character.spec.js, competitive.spec.js
+Isolated databases and synthetic AI. Error-state/latency tests include response interception. This is not a likeness, field-performance, accessibility-conformance, email-delivery or live-payment benchmark.

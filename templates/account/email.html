@@ -1,0 +1,58 @@
+{% extends "account/base_manage_email.html" %}
+{% block head_title %}Email akunmu{% endblock %}
+{% block content %}
+<h1>Email akunmu</h1>
+<p>Verifikasi email untuk mengunggah foto. Email utama dipakai untuk masuk dan menerima pesan akun.</p>
+<p>Email utama: <strong>{{ user.email }}</strong></p>
+{% if emailaddresses %}
+<section class="account-section" aria-labelledby="email-list-title">
+  <h2 id="email-list-title">Email tersimpan</h2>
+  {% for emailaddress in emailaddresses %}
+  <div class="account-email">
+    <p class="account-email-address">{{ emailaddress.email }}</p>
+    <p class="account-status">
+      {% if emailaddress.primary %}<span class="account-badge">Utama</span>{% endif %}
+      {% if emailaddress.verified %}<span class="account-badge verified">Sudah diverifikasi</span>{% else %}<span class="account-badge unverified">Belum diverifikasi</span>{% endif %}
+    </p>
+    {% if not emailaddress.verified %}
+    <form method="post" action="{% url 'account_email' %}">
+      {% csrf_token %}
+      <input type="hidden" name="email" value="{{ emailaddress.email }}">
+      <button class="account-secondary" type="submit" name="action_send">Kirim ulang email verifikasi</button>
+    </form>
+    {% elif not emailaddress.primary %}
+    <form method="post" action="{% url 'account_email' %}">
+      {% csrf_token %}
+      <input type="hidden" name="email" value="{{ emailaddress.email }}">
+      <button class="account-secondary" type="submit" name="action_primary">Jadikan email utama</button>
+    </form>
+    {% endif %}
+    {% if not emailaddress.primary %}
+    <details class="account-remove">
+      <summary>Hapus email ini</summary>
+      <p>Email ini akan dilepas dari akunmu. Email utama tetap dipakai untuk masuk.</p>
+      <form method="post" action="{% url 'account_email' %}">
+        {% csrf_token %}
+        <input type="hidden" name="email" value="{{ emailaddress.email }}">
+        <button class="account-danger" type="submit" name="action_remove">Ya, hapus email ini</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% else %}
+  {% include "account/snippets/warn_no_email.html" %}
+{% endif %}
+{% if can_add_email %}
+<section class="account-section" aria-labelledby="add-email-title">
+  <h2 id="add-email-title">Tambah atau ganti email</h2>
+  <p>Tambahkan alamat baru dan verifikasi dulu. Setelah itu kamu bisa menjadikannya email utama.</p>
+  <form method="post" action="{% url 'account_email' %}">
+    {% csrf_token %}
+    {{ form.as_div }}
+    <button type="submit" name="action_add">Tambah email</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

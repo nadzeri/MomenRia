@@ -1,0 +1,10 @@
+Creating test database for alias 'default'...
+........2026-10-09 19:27:55,412 WARNING request_id=120b9e57-e0aa-4ff7-9fe5-8ce460903271 django.security.csrf Forbidden (CSRF cookie not set.): /accounts/email/
+..............
+----------------------------------------------------------------------
+Ran 22 tests in 3.129s
+
+OK
+Destroying test database for alias 'default'...
+Found 22 test(s).
+System check identified no issues (0 silenced).

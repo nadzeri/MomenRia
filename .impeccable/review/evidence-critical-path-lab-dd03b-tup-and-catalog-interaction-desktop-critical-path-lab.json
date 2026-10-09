@@ -1,0 +1,84 @@
+{
+  "setup": "Localhost, fresh browser context, no CPU or network throttling; synthetic catalog",
+  "navigation": [
+    {
+      "responseEnd": 1.6000000089406967,
+      "domContentLoaded": 38.6000000089407,
+      "load": 42.6000000089407
+    }
+  ],
+  "resources": [
+    {
+      "name": "/static/app/assets/fonts/bricolage-grotesque-latin.woff2",
+      "transferSize": 77168,
+      "duration": 3.9000000059604645
+    },
+    {
+      "name": "/static/app/server.css",
+      "transferSize": 52512,
+      "duration": 3.3999999910593033
+    },
+    {
+      "name": "/static/app/server.js",
+      "transferSize": 108469,
+      "duration": 4.5999999940395355
+    },
+    {
+      "name": "/api/v1/session",
+      "transferSize": 751,
+      "duration": 1.9000000059604645
+    },
+    {
+      "name": "/api/v1/templates",
+      "transferSize": 23353,
+      "duration": 5.5999999940395355
+    },
+    {
+      "name": "/static/app/assets/photo-guide.jpg",
+      "transferSize": 38135,
+      "duration": 2.1000000089406967
+    },
+    {
+      "name": "/static/app/assets/photo-guide-right.jpg",
+      "transferSize": 39137,
+      "duration": 2.6000000089406967
+    },
+    {
+      "name": "/static/app/assets/studio.webp",
+      "transferSize": 54288,
+      "duration": 2.2000000029802322
+    },
+    {
+      "name": "/static/app/assets/lebaran.webp",
+      "transferSize": 89486,
+      "duration": 2.5999999940395355
+    },
+    {
+      "name": "/static/app/assets/home.webp",
+      "transferSize": 70586,
+      "duration": 3.7999999970197678
+    },
+    {
+      "name": "/static/app/assets/events/wisuda-ui.webp",
+      "transferSize": 76852,
+      "duration": 3.2000000029802322
+    },
+    {
+      "name": "/static/app/assets/events/ulang-tahun-anak.webp",
+      "transferSize": 72166,
+      "duration": 3.8999999910593033
+    },
+    {
+      "name": "/static/app/assets/events/prewedding-taman.webp",
+      "transferSize": 109078,
+      "duration": 4.299999997019768
+    },
+    {
+      "name": "/static/app/assets/events/bayi-enam-bulan.webp",
+      "transferSize": 150898,
+      "duration": 4.5
+    }
+  ],
+  "longTasksSupported": true,
+  "longTasks": []
+}

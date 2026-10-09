@@ -1,0 +1,40 @@
+{% load static i18n %}
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>{% block head_title %}Akun{% endblock %} — MomenRia</title>
+  <link rel="icon" href="{% static 'app/favicon.svg' %}" type="image/svg+xml">
+  <link rel="preload" href="{% static 'app/assets/fonts/bricolage-grotesque-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static 'app/server.css' %}?v=20261009-artsy">
+  <link rel="stylesheet" href="{% static 'app/account.css' %}?v=20261009">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="auth-body">
+  <a class="skip" href="#account-main">Lewati ke konten</a>
+  <header class="auth-header"><a class="brand" href="/">MomenRia<span class="brand-dot">.</span></a><a class="text-link" href="{% if user.is_authenticated %}/#/projects{% else %}/#/templates{% endif %}">{% if user.is_authenticated %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M20 12H4m6-6-6 6 6 6"/></svg> Kembali ke fotomu{% else %}Lihat template <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>{% endif %}</a></header>
+  <main class="auth-main" id="account-main" tabindex="-1">
+    <div class="auth-form-column">
+    <div class="auth-card">
+      {% block body %}
+        {% if messages %}<div class="account-messages" role="status">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
+        {% if user.is_authenticated %}
+        <nav class="auth-nav" aria-label="Pengaturan akun">
+          <a href="{% url 'account_email' %}"{% if request.resolver_match.url_name == 'account_email' %} aria-current="page"{% endif %}>Email</a>
+          <a href="{% url 'account_change_password' %}"{% if '/accounts/password/' in request.path %} aria-current="page"{% endif %}>Kata sandi</a>
+          <a href="{% url 'mfa_index' %}"{% if '/accounts/2fa/' in request.path %} aria-current="page"{% endif %}>Keamanan</a>
+          <a href="{% url 'account_logout' %}"{% if request.resolver_match.url_name == 'account_logout' %} aria-current="page"{% endif %}>Keluar</a>
+        </nav>
+        {% endif %}
+        {% if account_return_label %}<p class="account-return">Setelah masuk dan verifikasi email, lanjut ke <strong>{{ account_return_label }}</strong>.</p>{% endif %}
+        {% block content %}{% endblock %}
+      {% endblock %}
+    </div>
+    <p class="auth-note"><a href="/#/support">Bantuan akses akun</a> · <a href="/#/privacy">Privasi</a> · <a href="/#/terms">Ketentuan penggunaan</a></p>
+    </div>
+  </main>
+  {% block extra_body %}{% endblock %}
+</body>
+</html>

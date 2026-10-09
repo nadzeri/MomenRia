@@ -1,0 +1,20 @@
+
+> test
+> node --test test-*.cjs
+
+Passed: slot uniqueness, job idempotency, immutable purchases, correction allowance, deletion safety.
+✔ test-model.cjs (37.8325ms)
+Passed: upload multipart payload contains only API-approved fields.
+✔ test-server-upload.cjs (35.8825ms)
+Passed: startup deadline, saved-state restoration, late-callback safety, lazy portraits and load retries.
+✔ test-startup.cjs (36.049292ms)
+Passed: studio entry, template browsing, lazy draft creation, draft reuse, confirmed replacement, source retention and supporting routes.
+✔ test-studio.cjs (62.861917ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 70.05875

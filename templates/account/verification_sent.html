@@ -1,0 +1,22 @@
+{% extends "account/base_entrance.html" %}
+{% load i18n %}
+{% load allauth %}
+{% block head_title %}
+    Cek emailmu dulu, yuk
+{% endblock head_title %}
+{% block content %}
+    {% element h1 %}
+        Cek emailmu dulu, yuk
+    {% endelement %}
+    {% element p %}
+        Buka link verifikasi di emailmu untuk melanjutkan. Cek juga folder spam. Pengiriman ulang dibatasi; tunggu beberapa menit sebelum mencoba lagi.
+    {% endelement %}
+    {% if user.is_authenticated %}
+    <p><a class="account-button" href="{% url 'account_email' %}">Kirim ulang atau ubah email</a></p>
+    {% else %}
+    <p><a class="account-button" href="{% firstof account_return_login_url login_url %}">Masuk untuk kirim ulang verifikasi</a></p>
+    <p>Gunakan email dan kata sandi yang kamu daftarkan. Jika emailnya belum diverifikasi, masuk akan meminta pengiriman verifikasi lagi.</p>
+    <p>Alamat saat daftar keliru? <a href="{% firstof account_return_signup_url signup_url %}">Daftar dengan email yang benar</a>. Untuk bantuan dengan akun yang sudah ada, gunakan bantuan akses akun.</p>
+    {% endif %}
+    <p>Email belum masuk atau tidak bisa diakses? <a href="/#/support">Minta bantuan akses akun</a> tanpa perlu masuk.</p>
+{% endblock content %}

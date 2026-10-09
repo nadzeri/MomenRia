@@ -1,0 +1,22 @@
+{% extends "account/base_entrance.html" %}
+{% block head_title %}Masuk{% endblock %}
+{% block content %}
+<h1>Yuk, lanjut bikin kenangan.</h1>
+<p>Masuk dulu, lalu lanjutkan draf atau lihat foto yang sudah jadi.</p>
+<form method="post" action="{% url 'account_login' %}">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for field in form %}
+  <div>
+    {{ field.errors }}
+    {{ field.label_tag }}
+    {{ field }}
+    {% if field.name == 'password' %}<div class="helptext" id="{{ field.auto_id }}_helptext">{% include "account/password_reset_help_text.html" %}</div>
+    {% elif field.help_text %}<div class="helptext" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</div>{% endif %}
+  </div>
+  {% endfor %}
+  {{ redirect_field }}
+  <button type="submit">Masuk</button>
+</form>
+<p>Belum punya akun? <a href="{% firstof account_return_signup_url signup_url %}">Buat akun gratis</a></p>
+{% endblock %}

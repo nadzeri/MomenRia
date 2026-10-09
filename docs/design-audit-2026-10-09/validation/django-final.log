@@ -1,0 +1,65 @@
+Creating test database for alias 'default'...
+........2026-10-09 19:07:15,232 WARNING request_id=cef8d711-5cd6-43a6-b515-fc596def4c98 django.security.csrf Forbidden (CSRF cookie not set.): /accounts/email/
+................................2026-10-09 19:07:19,734 WARNING request_id=- django.request Bad Request: /api/v1/support/account-access
+.2026-10-09 19:07:19,841 WARNING request_id=- django.request Method Not Allowed: /api/v1/support/account-access
+.2026-10-09 19:07:19,842 WARNING request_id=2e105d82-4536-4dfd-92f4-72f05ae773a4 django.security.csrf Forbidden (CSRF cookie not set.): /api/v1/support/account-access
+2026-10-09 19:07:19,842 WARNING request_id=- django.request Bad Request: /api/v1/support/account-access
+2026-10-09 19:07:19,843 WARNING request_id=- django.request Bad Request: /api/v1/support/account-access
+2026-10-09 19:07:19,844 WARNING request_id=- django.request Bad Request: /api/v1/support/account-access
+2026-10-09 19:07:19,845 WARNING request_id=- django.request Bad Request: /api/v1/support/account-access
+2026-10-09 19:07:19,846 WARNING request_id=- django.request Bad Request: /api/v1/support/account-access
+2026-10-09 19:07:19,847 WARNING request_id=- django.request Bad Request: /api/v1/support/account-access
+2026-10-09 19:07:19,848 WARNING request_id=- django.request Bad Request: /api/v1/support/account-access
+2026-10-09 19:07:19,848 WARNING request_id=- django.request Too Many Requests: /api/v1/support/account-access
+..2026-10-09 19:07:20,271 WARNING request_id=- django.request Unauthorized: /api/v1/support/tickets/020831ce-6d14-439e-9cc2-14bb883b808f/replies
+2026-10-09 19:07:20,274 WARNING request_id=- django.request Not Found: /api/v1/support/tickets/020831ce-6d14-439e-9cc2-14bb883b808f/replies
+.2026-10-09 19:07:20,499 WARNING request_id=- django.request Bad Request: /api/v1/support/tickets/0aa2619e-ff46-4dba-9c2a-c1fafa24aa46/replies
+2026-10-09 19:07:20,501 WARNING request_id=- django.request Bad Request: /api/v1/support/tickets/0aa2619e-ff46-4dba-9c2a-c1fafa24aa46/replies
+2026-10-09 19:07:20,503 WARNING request_id=- django.request Bad Request: /api/v1/support/tickets/0aa2619e-ff46-4dba-9c2a-c1fafa24aa46/replies
+2026-10-09 19:07:20,504 WARNING request_id=- django.request Bad Request: /api/v1/support/tickets/0aa2619e-ff46-4dba-9c2a-c1fafa24aa46/replies
+2026-10-09 19:07:20,505 WARNING request_id=- django.request Too Many Requests: /api/v1/support/tickets/0aa2619e-ff46-4dba-9c2a-c1fafa24aa46/replies
+...2026-10-09 19:07:20,847 WARNING request_id=- django.request Too Many Requests: /api/v1/support/account-access
+.............2026-10-09 19:07:27,396 WARNING request_id=- django.request Conflict: /api/v1/projects/48922362-e0ee-44ac-9156-945d07dede7d/slots/26ab6e6e-820f-47f5-9e3d-597acb2dadff
+.........2026-10-09 19:07:31,136 WARNING request_id=- django.request Bad Request: /api/v1/results/7b105506-18b6-4777-82e7-640b8e811176/corrections
+............2026-10-09 19:07:36,356 WARNING request_id=- django.request Not Found: /api/v1/results/2764bb53-7e20-412e-b1f2-44878c1e3833/preview
+2026-10-09 19:07:36,359 WARNING request_id=- django.request Not Found: /api/v1/results/2764bb53-7e20-412e-b1f2-44878c1e3833/preview
+2026-10-09 19:07:36,372 WARNING request_id=- django.request Not Found: /api/v1/results/2764bb53-7e20-412e-b1f2-44878c1e3833/preview
+2026-10-09 19:07:36,374 WARNING request_id=- django.request Not Found: /api/v1/results/2764bb53-7e20-412e-b1f2-44878c1e3833/preview
+2026-10-09 19:07:36,386 WARNING request_id=- django.request Not Found: /api/v1/results/2764bb53-7e20-412e-b1f2-44878c1e3833/preview
+2026-10-09 19:07:36,389 WARNING request_id=- django.request Not Found: /api/v1/results/2764bb53-7e20-412e-b1f2-44878c1e3833/preview
+2026-10-09 19:07:36,390 WARNING request_id=- django.request Bad Request: /api/v1/results/2764bb53-7e20-412e-b1f2-44878c1e3833/preview
+2026-10-09 19:07:36,391 WARNING request_id=- django.request Not Found: /api/v1/results/2764bb53-7e20-412e-b1f2-44878c1e3833/master
+2026-10-09 19:07:36,394 WARNING request_id=- django.request Not Found: /api/v1/results/2764bb53-7e20-412e-b1f2-44878c1e3833/preview
+.2026-10-09 19:07:36,863 WARNING request_id=- django.request Not Found: /api/v1/character-sheets/e65bbae6-5ca2-4567-b5af-635d9946bede/review
+2026-10-09 19:07:36,866 WARNING request_id=- django.request Conflict: /api/v1/character-sheets/e65bbae6-5ca2-4567-b5af-635d9946bede/review
+2026-10-09 19:07:36,982 WARNING request_id=- django.request Conflict: /api/v1/character-sheets/e65bbae6-5ca2-4567-b5af-635d9946bede/review
+.......2026-10-09 19:07:39,881 WARNING request_id=- django.request Not Found: /api/v1/results/08300a4f-5d09-4f16-8729-ed957f71ba5d/preview
+2026-10-09 19:07:39,883 WARNING request_id=- django.request Not Found: /api/v1/results/08300a4f-5d09-4f16-8729-ed957f71ba5d/orders
+2026-10-09 19:07:39,984 WARNING request_id=- django.request Not Found: /api/v1/projects/230b21f3-b487-442f-885e-bb1c770a738a
+.2026-10-09 19:07:40,437 WARNING request_id=- django.request Not Found: /api/v1/results/d1907c7f-0e9c-4bf6-a0bb-664e98cc5cdb/master
+2026-10-09 19:07:40,439 WARNING request_id=- django.request Not Found: /api/v1/results/d1907c7f-0e9c-4bf6-a0bb-664e98cc5cdb/preview
+2026-10-09 19:07:40,442 WARNING request_id=- django.request Not Found: /api/v1/results/d1907c7f-0e9c-4bf6-a0bb-664e98cc5cdb/preview
+..2026-10-09 19:07:41,157 WARNING request_id=- django.request Conflict: /api/v1/projects/43d7b50d-d778-481b-b135-c1f56bf55892/character-sheets
+...2026-10-09 19:07:42,963 WARNING request_id=- django.request Not Found: /api/v1/character-sheets/f957182b-30ae-44b0-8331-b0bf56d7e8b0/preview
+2026-10-09 19:07:42,965 WARNING request_id=- django.request Not Found: /api/v1/character-sheets/f957182b-30ae-44b0-8331-b0bf56d7e8b0/preview
+......2026-10-09 19:07:44,814 WARNING request_id=- django.request Bad Request: /api/v1/projects/d79cb883-2537-4f39-bf13-51c8ebb623fc
+....2026-10-09 19:07:45,931 WARNING request_id=- django.request Not Found: /api/v1/projects/9d41da0d-620e-41c5-9290-028b0907329a
+..2026-10-09 19:07:46,433 WARNING request_id=- django.request Bad Request: /api/v1/projects
+2026-10-09 19:07:46,435 WARNING request_id=- django.request Bad Request: /api/v1/projects
+2026-10-09 19:07:46,436 WARNING request_id=- django.request Bad Request: /api/v1/projects
+2026-10-09 19:07:46,436 WARNING request_id=- django.request Bad Request: /api/v1/projects
+2026-10-09 19:07:46,437 WARNING request_id=- django.request Bad Request: /api/v1/projects
+2026-10-09 19:07:46,438 WARNING request_id=- django.request Bad Request: /api/v1/projects
+....2026-10-09 19:07:47,314 WARNING request_id=- django.request Not Found: /api/v1/projects/03120f7a-46c4-4f9f-9a9f-d5e0e2123e14
+2026-10-09 19:07:47,315 WARNING request_id=- django.request Not Found: /api/v1/results/34c177f2-8aaa-47e9-abde-bc4f740d6a93/feedback
+.2026-10-09 19:07:47,521 WARNING request_id=- django.request Bad Request: /api/v1/projects/cbba3e5e-c5f6-4606-ab35-4e0412cbc772/slots/5db92349-8901-45fa-aa09-72d7f96f850f
+..2026-10-09 19:07:47,942 WARNING request_id=- django.request Bad Request: /api/v1/projects/18410379-3fce-45a9-8e4e-de27c0bb2d94/sources
+.2026-10-09 19:07:48,208 WARNING request_id=- django.request Not Found: /api/v1/sources/95cb8ab1-50cc-4748-9a7a-14628fa71c33/thumbnail
+.ss
+----------------------------------------------------------------------
+Ran 119 tests in 34.213s
+
+OK (skipped=2)
+Destroying test database for alias 'default'...
+Found 119 test(s).
+System check identified no issues (0 silenced).

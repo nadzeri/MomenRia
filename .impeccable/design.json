@@ -1,0 +1,671 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-09T12:29:02.568154+00:00",
+  "title": "Design System: MomenRia",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Coral Action",
+        "tonalRamp": [
+          "oklch(0.150 0.17375 36.90)",
+          "oklch(0.264 0.17375 36.90)",
+          "oklch(0.379 0.17375 36.90)",
+          "oklch(0.493 0.17375 36.90)",
+          "oklch(0.607 0.17375 36.90)",
+          "oklch(0.721 0.17375 36.90)",
+          "oklch(0.836 0.17375 36.90)",
+          "oklch(0.950 0.17375 36.90)"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Soft Coral Hover",
+        "tonalRamp": [
+          "oklch(0.150 0.13978 39.12)",
+          "oklch(0.264 0.13978 39.12)",
+          "oklch(0.379 0.13978 39.12)",
+          "oklch(0.493 0.13978 39.12)",
+          "oklch(0.607 0.13978 39.12)",
+          "oklch(0.721 0.13978 39.12)",
+          "oklch(0.836 0.13978 39.12)",
+          "oklch(0.950 0.13978 39.12)"
+        ]
+      },
+      "gold": {
+        "role": "primary",
+        "displayName": "Burnt Coral Emphasis",
+        "tonalRamp": [
+          "oklch(0.150 0.15729 35.00)",
+          "oklch(0.264 0.15729 35.00)",
+          "oklch(0.379 0.15729 35.00)",
+          "oklch(0.493 0.15729 35.00)",
+          "oklch(0.607 0.15729 35.00)",
+          "oklch(0.721 0.15729 35.00)",
+          "oklch(0.836 0.15729 35.00)",
+          "oklch(0.950 0.15729 35.00)"
+        ]
+      },
+      "lilac": {
+        "role": "secondary",
+        "displayName": "Lilac Note",
+        "tonalRamp": [
+          "oklch(0.150 0.07501 297.70)",
+          "oklch(0.264 0.07501 297.70)",
+          "oklch(0.379 0.07501 297.70)",
+          "oklch(0.493 0.07501 297.70)",
+          "oklch(0.607 0.07501 297.70)",
+          "oklch(0.721 0.07501 297.70)",
+          "oklch(0.836 0.07501 297.70)",
+          "oklch(0.950 0.07501 297.70)"
+        ]
+      },
+      "workspace-surface": {
+        "role": "secondary",
+        "displayName": "Lilac Workspace Paper",
+        "tonalRamp": [
+          "oklch(0.150 0.01690 304.79)",
+          "oklch(0.264 0.01690 304.79)",
+          "oklch(0.379 0.01690 304.79)",
+          "oklch(0.493 0.01690 304.79)",
+          "oklch(0.607 0.01690 304.79)",
+          "oklch(0.721 0.01690 304.79)",
+          "oklch(0.836 0.01690 304.79)",
+          "oklch(0.950 0.01690 304.79)"
+        ]
+      },
+      "lime": {
+        "role": "tertiary",
+        "displayName": "Lime Highlight",
+        "tonalRamp": [
+          "oklch(0.150 0.12542 113.50)",
+          "oklch(0.264 0.12542 113.50)",
+          "oklch(0.379 0.12542 113.50)",
+          "oklch(0.493 0.12542 113.50)",
+          "oklch(0.607 0.12542 113.50)",
+          "oklch(0.721 0.12542 113.50)",
+          "oklch(0.836 0.12542 113.50)",
+          "oklch(0.950 0.12542 113.50)"
+        ]
+      },
+      "peach": {
+        "role": "tertiary",
+        "displayName": "Peach Occasion",
+        "tonalRamp": [
+          "oklch(0.150 0.07736 39.52)",
+          "oklch(0.264 0.07736 39.52)",
+          "oklch(0.379 0.07736 39.52)",
+          "oklch(0.493 0.07736 39.52)",
+          "oklch(0.607 0.07736 39.52)",
+          "oklch(0.721 0.07736 39.52)",
+          "oklch(0.836 0.07736 39.52)",
+          "oklch(0.950 0.07736 39.52)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Dark Ink",
+        "tonalRamp": [
+          "oklch(0.150 0.00184 106.53)",
+          "oklch(0.264 0.00184 106.53)",
+          "oklch(0.379 0.00184 106.53)",
+          "oklch(0.493 0.00184 106.53)",
+          "oklch(0.607 0.00184 106.53)",
+          "oklch(0.721 0.00184 106.53)",
+          "oklch(0.836 0.00184 106.53)",
+          "oklch(0.950 0.00184 106.53)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Warm Muted Ink",
+        "tonalRamp": [
+          "oklch(0.150 0.01016 84.59)",
+          "oklch(0.264 0.01016 84.59)",
+          "oklch(0.379 0.01016 84.59)",
+          "oklch(0.493 0.01016 84.59)",
+          "oklch(0.607 0.01016 84.59)",
+          "oklch(0.721 0.01016 84.59)",
+          "oklch(0.836 0.01016 84.59)",
+          "oklch(0.950 0.01016 84.59)"
+        ]
+      },
+      "cream": {
+        "role": "neutral",
+        "displayName": "Cream Paper",
+        "tonalRamp": [
+          "oklch(0.150 0.00952 93.57)",
+          "oklch(0.264 0.00952 93.57)",
+          "oklch(0.379 0.00952 93.57)",
+          "oklch(0.493 0.00952 93.57)",
+          "oklch(0.607 0.00952 93.57)",
+          "oklch(0.721 0.00952 93.57)",
+          "oklch(0.836 0.00952 93.57)",
+          "oklch(0.950 0.00952 93.57)"
+        ]
+      },
+      "cream-soft": {
+        "role": "neutral",
+        "displayName": "Soft White Paper",
+        "tonalRamp": [
+          "oklch(0.150 0.00537 95.10)",
+          "oklch(0.264 0.00537 95.10)",
+          "oklch(0.379 0.00537 95.10)",
+          "oklch(0.493 0.00537 95.10)",
+          "oklch(0.607 0.00537 95.10)",
+          "oklch(0.721 0.00537 95.10)",
+          "oklch(0.836 0.00537 95.10)",
+          "oklch(0.950 0.00537 95.10)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "White Mount",
+        "tonalRamp": [
+          "oklch(0.150 0.00000 0.00)",
+          "oklch(0.264 0.00000 0.00)",
+          "oklch(0.379 0.00000 0.00)",
+          "oklch(0.493 0.00000 0.00)",
+          "oklch(0.607 0.00000 0.00)",
+          "oklch(0.721 0.00000 0.00)",
+          "oklch(0.836 0.00000 0.00)",
+          "oklch(0.950 0.00000 0.00)"
+        ]
+      },
+      "soft": {
+        "role": "neutral",
+        "displayName": "Quiet Paper Wash",
+        "tonalRamp": [
+          "oklch(0.150 0.00958 93.57)",
+          "oklch(0.264 0.00958 93.57)",
+          "oklch(0.379 0.00958 93.57)",
+          "oklch(0.493 0.00958 93.57)",
+          "oklch(0.607 0.00958 93.57)",
+          "oklch(0.721 0.00958 93.57)",
+          "oklch(0.836 0.00958 93.57)",
+          "oklch(0.950 0.00958 93.57)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Paper Divider",
+        "tonalRamp": [
+          "oklch(0.150 0.01083 100.84)",
+          "oklch(0.264 0.01083 100.84)",
+          "oklch(0.379 0.01083 100.84)",
+          "oklch(0.493 0.01083 100.84)",
+          "oklch(0.607 0.01083 100.84)",
+          "oklch(0.721 0.01083 100.84)",
+          "oklch(0.836 0.01083 100.84)",
+          "oklch(0.950 0.01083 100.84)"
+        ]
+      },
+      "field-border": {
+        "role": "neutral",
+        "displayName": "Field Outline",
+        "tonalRamp": [
+          "oklch(0.150 0.01025 87.48)",
+          "oklch(0.264 0.01025 87.48)",
+          "oklch(0.379 0.01025 87.48)",
+          "oklch(0.493 0.01025 87.48)",
+          "oklch(0.607 0.01025 87.48)",
+          "oklch(0.721 0.01025 87.48)",
+          "oklch(0.836 0.01025 87.48)",
+          "oklch(0.950 0.01025 87.48)"
+        ]
+      },
+      "danger": {
+        "role": "primary",
+        "displayName": "Brick Danger",
+        "tonalRamp": [
+          "oklch(0.150 0.13708 26.79)",
+          "oklch(0.264 0.13708 26.79)",
+          "oklch(0.379 0.13708 26.79)",
+          "oklch(0.493 0.13708 26.79)",
+          "oklch(0.607 0.13708 26.79)",
+          "oklch(0.721 0.13708 26.79)",
+          "oklch(0.836 0.13708 26.79)",
+          "oklch(0.950 0.13708 26.79)"
+        ]
+      },
+      "ink-deep": {
+        "role": "neutral",
+        "displayName": "Deep Ink",
+        "tonalRamp": [
+          "oklch(0.150 0.00000 0.00)",
+          "oklch(0.264 0.00000 0.00)",
+          "oklch(0.379 0.00000 0.00)",
+          "oklch(0.493 0.00000 0.00)",
+          "oklch(0.607 0.00000 0.00)",
+          "oklch(0.721 0.00000 0.00)",
+          "oklch(0.836 0.00000 0.00)",
+          "oklch(0.950 0.00000 0.00)"
+        ]
+      },
+      "button-outline": {
+        "role": "neutral",
+        "displayName": "Button Outline",
+        "tonalRamp": [
+          "oklch(0.150 0.01404 102.09)",
+          "oklch(0.264 0.01404 102.09)",
+          "oklch(0.379 0.01404 102.09)",
+          "oklch(0.493 0.01404 102.09)",
+          "oklch(0.607 0.01404 102.09)",
+          "oklch(0.721 0.01404 102.09)",
+          "oklch(0.836 0.01404 102.09)",
+          "oklch(0.950 0.01404 102.09)"
+        ]
+      },
+      "account-outline": {
+        "role": "neutral",
+        "displayName": "Account Outline",
+        "tonalRamp": [
+          "oklch(0.150 0.01355 91.58)",
+          "oklch(0.264 0.01355 91.58)",
+          "oklch(0.379 0.01355 91.58)",
+          "oklch(0.493 0.01355 91.58)",
+          "oklch(0.607 0.01355 91.58)",
+          "oklch(0.721 0.01355 91.58)",
+          "oklch(0.836 0.01355 91.58)",
+          "oklch(0.950 0.01355 91.58)"
+        ]
+      },
+      "account-placeholder": {
+        "role": "neutral",
+        "displayName": "Account Placeholder Ink",
+        "tonalRamp": [
+          "oklch(0.150 0.00818 88.69)",
+          "oklch(0.264 0.00818 88.69)",
+          "oklch(0.379 0.00818 88.69)",
+          "oklch(0.493 0.00818 88.69)",
+          "oklch(0.607 0.00818 88.69)",
+          "oklch(0.721 0.00818 88.69)",
+          "oklch(0.836 0.00818 88.69)",
+          "oklch(0.950 0.00818 88.69)"
+        ]
+      },
+      "nav-hover": {
+        "role": "secondary",
+        "displayName": "Lilac Hover Wash",
+        "tonalRamp": [
+          "oklch(0.150 0.01696 304.79)",
+          "oklch(0.264 0.01696 304.79)",
+          "oklch(0.379 0.01696 304.79)",
+          "oklch(0.493 0.01696 304.79)",
+          "oklch(0.607 0.01696 304.79)",
+          "oklch(0.721 0.01696 304.79)",
+          "oklch(0.836 0.01696 304.79)",
+          "oklch(0.950 0.01696 304.79)"
+        ]
+      },
+      "tag-surface": {
+        "role": "tertiary",
+        "displayName": "Pale Lime Tag",
+        "tonalRamp": [
+          "oklch(0.150 0.03837 113.51)",
+          "oklch(0.264 0.03837 113.51)",
+          "oklch(0.379 0.03837 113.51)",
+          "oklch(0.493 0.03837 113.51)",
+          "oklch(0.607 0.03837 113.51)",
+          "oklch(0.721 0.03837 113.51)",
+          "oklch(0.836 0.03837 113.51)",
+          "oklch(0.950 0.03837 113.51)"
+        ]
+      },
+      "tag-border": {
+        "role": "tertiary",
+        "displayName": "Pale Lime Tag Outline",
+        "tonalRamp": [
+          "oklch(0.150 0.06245 112.64)",
+          "oklch(0.264 0.06245 112.64)",
+          "oklch(0.379 0.06245 112.64)",
+          "oklch(0.493 0.06245 112.64)",
+          "oklch(0.607 0.06245 112.64)",
+          "oklch(0.721 0.06245 112.64)",
+          "oklch(0.836 0.06245 112.64)",
+          "oklch(0.950 0.06245 112.64)"
+        ]
+      },
+      "notice-surface": {
+        "role": "neutral",
+        "displayName": "Warm Notice Paper",
+        "tonalRamp": [
+          "oklch(0.150 0.03374 86.31)",
+          "oklch(0.264 0.03374 86.31)",
+          "oklch(0.379 0.03374 86.31)",
+          "oklch(0.493 0.03374 86.31)",
+          "oklch(0.607 0.03374 86.31)",
+          "oklch(0.721 0.03374 86.31)",
+          "oklch(0.836 0.03374 86.31)",
+          "oklch(0.950 0.03374 86.31)"
+        ]
+      },
+      "notice-ink": {
+        "role": "neutral",
+        "displayName": "Warm Notice Ink",
+        "tonalRamp": [
+          "oklch(0.150 0.07739 75.74)",
+          "oklch(0.264 0.07739 75.74)",
+          "oklch(0.379 0.07739 75.74)",
+          "oklch(0.493 0.07739 75.74)",
+          "oklch(0.607 0.07739 75.74)",
+          "oklch(0.721 0.07739 75.74)",
+          "oklch(0.836 0.07739 75.74)",
+          "oklch(0.950 0.07739 75.74)"
+        ]
+      },
+      "notice-border": {
+        "role": "neutral",
+        "displayName": "Warm Notice Outline",
+        "tonalRamp": [
+          "oklch(0.150 0.04953 90.53)",
+          "oklch(0.264 0.04953 90.53)",
+          "oklch(0.379 0.04953 90.53)",
+          "oklch(0.493 0.04953 90.53)",
+          "oklch(0.607 0.04953 90.53)",
+          "oklch(0.721 0.04953 90.53)",
+          "oklch(0.836 0.04953 90.53)",
+          "oklch(0.950 0.04953 90.53)"
+        ]
+      },
+      "danger-hover": {
+        "role": "primary",
+        "displayName": "Deep Brick Hover",
+        "tonalRamp": [
+          "oklch(0.150 0.11882 27.01)",
+          "oklch(0.264 0.11882 27.01)",
+          "oklch(0.379 0.11882 27.01)",
+          "oklch(0.493 0.11882 27.01)",
+          "oklch(0.607 0.11882 27.01)",
+          "oklch(0.721 0.11882 27.01)",
+          "oklch(0.836 0.11882 27.01)",
+          "oklch(0.950 0.11882 27.01)"
+        ]
+      },
+      "error-surface": {
+        "role": "neutral",
+        "displayName": "Pale Error Paper",
+        "tonalRamp": [
+          "oklch(0.150 0.01818 43.23)",
+          "oklch(0.264 0.01818 43.23)",
+          "oklch(0.379 0.01818 43.23)",
+          "oklch(0.493 0.01818 43.23)",
+          "oklch(0.607 0.01818 43.23)",
+          "oklch(0.721 0.01818 43.23)",
+          "oklch(0.836 0.01818 43.23)",
+          "oklch(0.950 0.01818 43.23)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Wide-screen marketing hero; local responsive overrides reduce it."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Expressive marketing section headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Smaller headings; specialized cards retain their local sizes."
+      },
+      "workspace-title": {
+        "displayName": "Workspace Title",
+        "purpose": "Compact task and reading-page titles."
+      },
+      "account-title": {
+        "displayName": "Account Title",
+        "purpose": "Compact account headings from the later-loaded account stylesheet."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Reading text and editable form controls."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Main action names."
+      },
+      "field-label": {
+        "displayName": "Field Label",
+        "purpose": "Main form labels; account labels stay body-sized."
+      },
+      "helper": {
+        "displayName": "Helper",
+        "purpose": "Captions, dates, instructions and status details."
+      },
+      "account-button": {
+        "displayName": "Account Button",
+        "purpose": "Body-sized account action labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "photo-mount",
+        "value": "0 8px 16px #24242312,0 20px 35px #24242314",
+        "purpose": "under marketing scrapbook photographs."
+      },
+      {
+        "name": "portrait-stage",
+        "value": "0 12px 28px #24242310",
+        "purpose": "beneath the white-framed studio portrait."
+      },
+      {
+        "name": "action-hover",
+        "value": "0 4px 12px #24242318",
+        "purpose": "beside the primary action's small lift."
+      },
+      {
+        "name": "collection-hover",
+        "value": "0 6px 20px #24242318",
+        "purpose": "on lifted occasion cards and straightened marketing cards."
+      },
+      {
+        "name": "transient-feedback",
+        "value": "0 6px 30px #24242330",
+        "purpose": "under dark toast feedback."
+      },
+      {
+        "name": "fixed-studio-action",
+        "value": "0 -4px 18px #24242312",
+        "purpose": "separates the narrow task control from content."
+      },
+      {
+        "name": "fixed-save-action",
+        "value": "0 0 0 8px var(--cream),0 -6px 18px #24242312",
+        "purpose": "supplies a paper margin around the narrow save control."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-transition",
+        "value": ".2s",
+        "purpose": "Background, border, color and small action lift."
+      },
+      {
+        "name": "photo-hover",
+        "value": ".3s",
+        "purpose": "Marketing photo mount lift."
+      },
+      {
+        "name": "image-scale",
+        "value": ".4s",
+        "purpose": "Template image hover scale."
+      },
+      {
+        "name": "loading-breathe",
+        "value": "1.5s infinite",
+        "purpose": "Existing loading indicator only; disabled for reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "account-narrow",
+        "value": "480px"
+      },
+      {
+        "name": "mobile",
+        "value": "600px"
+      },
+      {
+        "name": "filter-two-column-start",
+        "value": "641px"
+      },
+      {
+        "name": "workspace-stack",
+        "value": "900px"
+      },
+      {
+        "name": "catalog-stack",
+        "value": "1000px"
+      },
+      {
+        "name": "compact-desktop",
+        "value": "1150px"
+      },
+      {
+        "name": "wide",
+        "value": "1600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Coral primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main creation, upload and save action; main-app sizing.",
+      "html": "<button type=\"button\" class=\"ds-primary\">Simpan foto <svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5\"></path></svg></button>",
+      "css": ".ds-primary{display:inline-flex;justify-content:center;align-items:center;gap:1rem;min-height:52px;padding:.85rem 1.5rem;border-radius:999px;border:1px solid transparent;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-weight:650;font-size:.875rem;line-height:1.6;text-align:center;cursor:pointer;transition:background .2s,transform .2s,box-shadow .2s;background:var(--accent);color:var(--ink);}.ds-primary:hover{background:var(--accent-hover);transform:translateY(-2px);box-shadow:0 4px 12px #24242318;}.ds-primary:disabled{cursor:not-allowed;opacity:.48;}.ds-primary:focus-visible{outline:3px solid var(--ink);outline-offset:5px;}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none;}}"
+    },
+    {
+      "name": "Outlined secondary action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Main-app secondary action with quiet-paper hover.",
+      "html": "<button type=\"button\" class=\"ds-secondary\">Ganti template</button>",
+      "css": ".ds-secondary{display:inline-flex;justify-content:center;align-items:center;gap:1rem;min-height:52px;padding:.85rem 1.5rem;border-radius:999px;border:1px solid transparent;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-weight:650;font-size:.875rem;line-height:1.6;text-align:center;cursor:pointer;transition:background .2s,transform .2s,box-shadow .2s;background:transparent;color:var(--ink);border-color:#b3b2a8;}.ds-secondary:hover{background:var(--soft);}.ds-secondary:disabled{cursor:not-allowed;opacity:.48;}.ds-secondary:focus-visible{outline:3px solid var(--ink);outline-offset:5px;}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none;}}"
+    },
+    {
+      "name": "Account danger action",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Confirmed account management action; account sizing and hover.",
+      "html": "<button type=\"button\" class=\"ds-danger\">Hapus email</button>",
+      "css": ".ds-danger{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:10px 20px;border:1px solid transparent;border-radius:999px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-size:16px;font-weight:650;line-height:1.4;text-align:center;cursor:pointer;background:var(--danger);color:white;}.ds-danger:hover{background:#7e2924;}.ds-danger:disabled{cursor:not-allowed;opacity:.48;}.ds-danger:focus-visible{outline:3px solid var(--ink);outline-offset:5px;}"
+    },
+    {
+      "name": "Labeled input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Main-app field with persistent label and neighboring help.",
+      "html": "<label class=\"ds-field\">Email<input class=\"ds-input\" type=\"email\" placeholder=\"Alamat email\" aria-describedby=\"ds-field-note\"></label><p class=\"ds-field-note\" id=\"ds-field-note\">Gunakan alamat email akunmu.</p>",
+      "css": ".ds-field{display:grid;gap:8px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-size:var(--help-size);font-weight:600;line-height:1.6;color:var(--ink);}.ds-input{padding:12px 14px;min-height:48px;color:var(--ink);background:var(--surface);border:1px solid var(--field-border);border-radius:12px;width:100%;min-width:0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-weight:400;font-size:1rem;line-height:1.6;caret-color:var(--ink);}.ds-input::placeholder{color:var(--placeholder);opacity:1;}.ds-field-note{font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-size:var(--help-size);line-height:1.6;color:var(--muted);margin:8px 0 0;}.ds-input:focus-visible{outline:3px solid var(--ink);outline-offset:5px;}"
+    },
+    {
+      "name": "App navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Desktop navigation with a visible and semantic current item.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Navigasi utama\"><a class=\"ds-nav-link\" href=\"#/\">Beranda</a><a class=\"ds-nav-link\" href=\"#/templates\" aria-current=\"page\">Template</a><a class=\"ds-nav-link\" href=\"#/projects\">Foto saya</a></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}.ds-nav-link{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border-radius:999px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-size:var(--help-size);line-height:1.6;color:var(--muted);font-weight:550;text-decoration:none;transition:background .2s,color .2s;}.ds-nav-link[aria-current]{background:var(--lime);color:var(--ink);}.ds-nav-link:hover{background:#e6e1ed;color:var(--ink);}.ds-nav-link:focus-visible{outline:3px solid var(--ink);outline-offset:5px;}@media(prefers-reduced-motion:reduce){.ds-nav-link{transition:none;}}"
+    },
+    {
+      "name": "Status tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Quiet status chip with text, rather than color alone.",
+      "html": "<span class=\"ds-tag\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 4 4L19 6\"></path></svg>2 / 2 foto siap</span>",
+      "css": ".ds-tag{display:inline-flex;align-items:center;gap:.4rem;border:1px solid #d4d9aa;background:#edf1d4;color:var(--ink);padding:.35rem .75rem;border-radius:999px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-size:var(--help-size);font-weight:500;line-height:1.5;}"
+    },
+    {
+      "name": "Paper content card",
+      "kind": "card",
+      "refersTo": "content-card",
+      "description": "Flat information surface with a restrained reading action.",
+      "html": "<article class=\"ds-card\"><h2 class=\"ds-card-title\">Foto asli & hasil</h2><p class=\"ds-card-copy\">Periksa tanggal penyimpanan masing-masing di proyekmu.</p><a class=\"ds-card-link\" href=\"#/guide\">Baca panduan foto <svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 12h16m-6-6 6 6-6 6\"></path></svg></a></article>",
+      "css": ".ds-card{background:var(--cream-soft);color:var(--ink);border:1px solid var(--line);border-radius:24px;padding:32px;min-width:0;}.ds-card-title{font-family:var(--display);font-size:1.8rem;font-weight:700;line-height:1.08;letter-spacing:-.04em;margin:0 0 20px;}.ds-card-copy{font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-size:var(--help-size);line-height:1.6;color:var(--muted);margin:0 0 16px;}.ds-card-link{display:inline-flex;align-items:center;gap:.7rem;min-height:44px;color:var(--ink);font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-size:var(--help-size);font-weight:600;line-height:1.6;text-decoration:none;}.ds-card-link:hover{color:var(--gold);}.ds-card-link:focus-visible{outline:3px solid var(--ink);outline-offset:5px;}"
+    },
+    {
+      "name": "Photo assignment tile",
+      "kind": "custom",
+      "refersTo": "upload-tile",
+      "description": "Unfilled position with upload symbol and written instruction; ready state changes the border to solid.",
+      "html": "<button type=\"button\" class=\"ds-upload\"><span class=\"ds-upload-thumbnail\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"></path></svg></span><span class=\"ds-upload-copy\"><strong class=\"ds-upload-label\">Wajah 1</strong><small class=\"ds-upload-help\">Tambahkan foto</small></span></button>",
+      "css": ".ds-upload{width:100%;display:flex;text-align:left;align-items:center;gap:12px;padding:14px;border:1px dashed #b5afa7;border-radius:16px;background:var(--cream);color:var(--ink);font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;line-height:1.6;cursor:pointer;transition:border-color .2s,background .2s;}.ds-upload:hover{border-color:var(--ink);background:var(--soft);}.ds-upload.ds-upload-ready{border-style:solid;}.ds-upload-thumbnail{display:flex;align-items:center;justify-content:center;width:46px;height:46px;background:var(--lilac);border-radius:12px;flex:none;}.ds-upload-label{display:block;font-size:var(--help-size);font-weight:700;}.ds-upload-help{display:block;font-size:var(--help-size);color:var(--muted);margin-top:3px;}.ds-upload:disabled{cursor:not-allowed;opacity:.48;}.ds-upload:focus-visible{outline:3px solid var(--ink);outline-offset:5px;}@media(prefers-reduced-motion:reduce){.ds-upload{transition:none;}}"
+    },
+    {
+      "name": "Warm status notice",
+      "kind": "custom",
+      "refersTo": "notice",
+      "description": "Mode, processing and recovery explanation with icon and readable text.",
+      "html": "<div class=\"ds-notice\" role=\"status\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0\"></path></svg><span class=\"ds-notice-copy\"><strong>Simulasi pemrosesan.</strong> Hasil contoh bukan bukti kemiripan.</span></div>",
+      "css": ".ds-notice{display:flex;align-items:flex-start;gap:12px;background:#f9eed6;color:#6a4b19;border:1px solid #eaddb9;border-radius:10px;padding:16px 18px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-size:var(--help-size);line-height:1.6;}.ds-notice svg{flex-shrink:0;margin-top:3px;}"
+    },
+    {
+      "name": "Portrait journey",
+      "kind": "custom",
+      "refersTo": "journey",
+      "description": "Wrapping steps with a numbered and semantic current position.",
+      "html": "<ol class=\"ds-journey\" aria-label=\"Langkah membuat foto\"><li class=\"ds-journey-step\"><span>1</span>Template</li><li class=\"ds-journey-step\" aria-current=\"step\"><span>2</span>Foto</li><li class=\"ds-journey-step\"><span>3</span>Posisi & buat</li><li class=\"ds-journey-step\"><span>4</span>Cek wajah</li><li class=\"ds-journey-step\"><span>5</span>Simpan</li></ol>",
+      "css": ".ds-journey{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:12px 20px;}.ds-journey-step{display:flex;align-items:center;gap:8px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;font-size:var(--help-size);line-height:1.6;color:var(--muted);}.ds-journey-step span{border:1px solid var(--line);border-radius:50%;width:26px;height:26px;display:grid;place-items:center;}.ds-journey-step[aria-current]{color:var(--ink);font-weight:650;}.ds-journey-step[aria-current] span{background:var(--lime);border-color:var(--ink);}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Photo Scrapbook",
+    "overview": "Cream paper, dark ink, coral actions, lilac notes and lime highlights make MomenRia feel like a place to keep a family moment. Photographs lead the composition. White mounts, gently tilted marketing images and rounded paper surfaces supply the scrapbook character; the typography stays direct and readable.\n\nMarketing screens use generous space and expressive Bricolage headings. Portrait work and account screens use compact headings, recognizable photo positions and quiet surfaces so the current task is easy to follow. Indonesian labels remain warm and concrete, while visible state labels distinguish an example, a saved photo, a pending review and an error.",
+    "keyCharacteristics": [
+      "Photo-led compositions with cream paper and white mounts.",
+      "Dark ink for reading and coral for the principal action.",
+      "Lilac and lime accents for orientation, selection and occasion collections.",
+      "Expressive marketing headings with compact task and account typography.",
+      "Rounded controls, visible focus and restrained state transitions."
+    ],
+    "rules": [
+      {
+        "name": "The Ink on Accent Rule",
+        "body": "Keep dark ink on coral, lilac and lime surfaces; use white text on brick danger actions and ink photo-position markers, and cream text on dark ink actions.",
+        "section": "colors"
+      },
+      {
+        "name": "The Written State Rule",
+        "body": "Pair state color with a visible label or explanation; selection, review and error state must remain understandable without color.",
+        "section": "colors"
+      },
+      {
+        "name": "The Task Type Rule",
+        "body": "Use compact workspace and account roles on working screens; keep the large display role with marketing compositions.",
+        "section": "typography"
+      },
+      {
+        "name": "The Legible Form Rule",
+        "body": "Keep editable form controls at the implemented body size and preserve readable help for instructions and errors.",
+        "section": "typography"
+      },
+      {
+        "name": "The Paper First Rule",
+        "body": "Use tone, outline and space for ordinary task surfaces; keep lift and shadow with photo mounts, transient feedback and raised actions.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** lead with photographs, identifiable people and the next useful action.",
+      "**Do** use cream paper, dark ink and the existing coral, lilac and lime roles consistently.",
+      "**Do** keep task and account headings compact while preserving expressive marketing compositions.",
+      "**Do** keep fields body-sized, help readable and keyboard focus clearly visible.",
+      "**Do** pair selection, readiness, review and error colors with written state and semantic attributes.",
+      "**Do** reserve space for mobile navigation and fixed task actions, including the safe area.",
+      "**Do** label template examples and synthetic results so illustration cannot be mistaken for likeness evidence.",
+      "**Do** preserve native dialogs, disclosures and reduced-motion preference."
+    ],
+    "donts": [
+      "**Don't** replace the approved cream, ink, coral, lilac and lime scrapbook identity with a generic application palette.",
+      "**Don't** carry marketing-scale headings and photographic tilt into ordinary task panels and forms.",
+      "**Don't** use white text on bright coral actions or depend on hover to establish readable contrast.",
+      "**Don't** make state color, an unlabeled icon or a position number carry the whole instruction.",
+      "**Don't** cover working content with fixed controls without matching bottom space.",
+      "**Don't** let decorative framing imply more detail, longer retention or verified likeness.",
+      "**Don't** present a synthetic example or polished interface as proof of production readiness."
+    ]
+  }
+}

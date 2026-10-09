@@ -1,0 +1,45 @@
+{% extends "account/base_entrance.html" %}
+{% load i18n %}
+{% load account %}
+{% load allauth %}
+{% block head_title %}
+    Ini emailmu, kan?
+{% endblock head_title %}
+{% block content %}
+    {% element h1 %}
+        Ini emailmu, kan?
+    {% endelement %}
+    {% if confirmation %}
+        {% user_display confirmation.email_address.user as user_display %}
+        {% if can_confirm %}
+            {% element p %}
+                Pastikan <strong>{{ confirmation.email_address.email }}</strong> memang email yang kamu pakai untuk akun {{ user_display }}, ya.
+            {% endelement %}
+            {% url 'account_confirm_email' confirmation.key as action_url %}
+            {% element form method="post" action=action_url %}
+                {% slot actions %}
+                    {% csrf_token %}
+                    {{ redirect_field }}
+                    {% element button type="submit" %}
+                        Ya, ini emailku
+                    {% endelement %}
+                {% endslot %}
+            {% endelement %}
+        {% else %}
+            {% element p %}
+                Email ini sudah diverifikasi di akun lain, jadi belum bisa dipakai untuk akun ini.
+            {% endelement %}
+            <p><a href="/#/support">Minta bantuan akses akun</a> untuk menjelaskan kendalamu.</p>
+        {% endif %}
+    {% else %}
+        {% element p %}
+            Link verifikasi ini sudah nggak berlaku.
+        {% endelement %}
+        {% if user.is_authenticated %}
+        <a class="account-button" href="{% url 'account_email' %}">Atur email dan minta verifikasi baru</a>
+        {% else %}
+        <a class="account-button" href="{% if account_return_login_url %}{{ account_return_login_url }}{% else %}{% url 'account_login' %}{% endif %}">Masuk untuk minta verifikasi baru</a>
+        <p>Gunakan email dan kata sandi saat daftar. Pengiriman ulang dibatasi; tunggu beberapa menit jika baru saja meminta email.</p>
+        {% endif %}
+    {% endif %}
+{% endblock content %}

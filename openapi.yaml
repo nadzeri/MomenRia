@@ -1,0 +1,687 @@
+openapi: 3.1.0
+info:
+  title: MomenRia API
+  version: 0.3.0
+  description: Same-origin API with private customer accounts and CSRF-protected mutations. Shared-owner PUBLIC_ACCESS mode is test-only and rejected in production. Payments may be disabled while owner-only preview downloads remain available. Operator endpoints require authenticated staff sessions.
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: sessionid
+  schemas:
+    Error:
+      type: object
+      required: [code, message, request_id, retryable]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        request_id: {type: string}
+        retryable: {type: boolean}
+    Project:
+      type: object
+      required: [id, template_id, offer_id, state, revision, assignments, sources, results, jobs]
+      properties:
+        id: {type: string, format: uuid}
+        template_id: {type: string, format: uuid}
+        template: {type: object, description: Template metadata and stable slots retained for existing projects even when the catalog version is paused}
+        correction_available: {type: boolean, description: Always true for quota availability; live admission checks job state, source eligibility and service capacity}
+        offer_id: {type: string, format: uuid}
+        state: {enum: [draft, active, deleted]}
+        revision: {type: integer}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        selected_result_id: {type: [string, "null"], format: uuid}
+        assignments: {type: object, additionalProperties: {type: string, format: uuid}}
+        assigned_sheets: {type: object, additionalProperties: {type: string, format: uuid}}
+        character_sheets: {type: array, items: {$ref: '#/components/schemas/CharacterSheet'}}
+        template_change_available: {type: boolean, description: Completed preparation jobs permit template changes; portrait jobs, results and active jobs freeze changes}
+        sources: {type: array, items: {type: object}}
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              id: {type: string, format: uuid}
+              created_at: {type: string, format: date-time}
+              feedback:
+                type: array
+                description: Latest feedback for each slot and the global null slot on this exact result version. New versions start unreviewed.
+                items: {$ref: '#/components/schemas/Feedback'}
+        jobs: {type: array, items: {$ref: '#/components/schemas/Job'}}
+    Feedback:
+      type: object
+      required: [slot_id, accepted, issue, created_at]
+      properties:
+        slot_id: {type: [string, "null"], format: uuid}
+        accepted: {type: [boolean, "null"]}
+        issue: {type: string}
+        created_at: {type: string, format: date-time}
+    SupportReply:
+      type: object
+      required: [id, message, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        message: {type: string, minLength: 10, maxLength: 2000}
+        created_at: {type: string, format: date-time}
+    Job:
+      type: object
+      required: [id, project_id, operation, state, status_url]
+      properties:
+        id: {type: string, format: uuid}
+        project_id: {type: string, format: uuid}
+        operation: {enum: [creation, correction, character_sheet]}
+        state: {enum: [queued, dispatching, processing, uncertain, finalizing, ready, failed, cancelled]}
+        error_code: {type: string}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        result_id: {type: [string, "null"], format: uuid}
+        character_sheet_id: {type: [string, "null"], format: uuid}
+        status_url: {type: string}
+    CharacterSheet:
+      type: object
+      required: [id, source_id, version, mode, status, synthetic, expires_at, panel_provenance, preview_url]
+      properties:
+        id: {type: string, format: uuid}
+        source_id: {type: string, format: uuid}
+        version: {type: integer, minimum: 1}
+        mode: {enum: [source_layout, generated]}
+        status: {enum: [preparing, review, approved, rejected, failed, expired, deleted]}
+        synthetic: {type: boolean, description: Test-only output, never evidence of likeness}
+        expires_at: {type: string, format: date-time}
+        panel_provenance: {type: array, items: {type: object}}
+        preview_url: {type: [string, "null"]}
+  parameters:
+    ProjectId:
+      name: project_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    ResultId:
+      name: result_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, maxLength: 180}
+  responses:
+    Unauthorized:
+      description: Session required
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    NotFound:
+      description: Missing or inaccessible object
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Conflict:
+      description: Revision, state, source, or idempotency conflict
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+security: []
+paths:
+  /session:
+    get:
+      security: []
+      summary: Read current session and issue CSRF token
+      responses:
+        "200":
+          description: Session, CSRF token, configured retention/upload policy and capabilities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated: {type: boolean}
+                  public_access: {type: boolean}
+                  email_verified: {type: boolean}
+                  csrf_token: {type: string}
+                  creation_available: {type: boolean, description: Always true; creation has no lifetime quota}
+                  operating_mode:
+                    type: object
+                    properties:
+                      synthetic_processing: {type: boolean, description: True only for the configured fake AI gateway}
+                      public_launch_ready: {type: boolean, const: false, description: Production launch remains gated by documented external evidence; admission availability is separate}
+                  capabilities:
+                    type: object
+                    properties:
+                      payments_enabled: {type: boolean}
+                      corrections_enabled: {type: boolean}
+                  policy:
+                    type: object
+                    properties:
+                      source_retention_days: {type: integer}
+                      result_retention_days: {type: integer}
+                      upload_max_bytes: {type: integer}
+  /templates:
+    get:
+      security: []
+      summary: List published, evidence-approved template versions and active offers
+      responses:
+        "200": {description: Published catalog with original sample_asset and optional optimized display_asset, active offers and admission_enabled. Disabled AI is never advertised as available.}
+  /projects:
+    get:
+      summary: List owner's active projects
+      parameters:
+        - name: offset
+          in: query
+          schema: {type: integer, minimum: 0, default: 0}
+        - name: limit
+          in: query
+          description: Values above 50 are capped at 50
+          schema: {type: integer, minimum: 1, default: 50}
+      responses:
+        "200":
+          description: Owner projects excluding deleted projects, ordered by most recently updated then ID
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, offset, limit, next_offset]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Project'}}
+                  offset: {type: integer, minimum: 0}
+                  limit: {type: integer, minimum: 1, maximum: 50}
+                  next_offset: {type: [integer, "null"], description: Null when no additional projects remain}
+        "400": {description: Invalid pagination}
+        "401": {$ref: '#/components/responses/Unauthorized'}
+    post:
+      summary: Create draft for exact template and offer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [template_id, offer_id]
+              properties:
+                template_id: {type: string, format: uuid}
+                offer_id: {type: string, format: uuid}
+                assisted: {type: boolean, default: false}
+                acquisition_source: {type: string, maxLength: 80}
+      responses:
+        "201": {description: Created project, content: {application/json: {schema: {$ref: '#/components/schemas/Project'}}}}
+        "409": {description: Template or offer unavailable, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  /projects/{project_id}:
+    parameters:
+      - {$ref: '#/components/parameters/ProjectId'}
+    get:
+      summary: Recover owner project
+      responses:
+        "200": {description: Project, content: {application/json: {schema: {$ref: '#/components/schemas/Project'}}}}
+        "404": {$ref: '#/components/responses/NotFound'}
+    patch:
+      summary: Select existing result version or confirm template change with optimistic revision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_revision]
+              properties:
+                selected_result_id: {type: [string, "null"], format: uuid}
+                template_id: {type: string, format: uuid}
+                confirmation: {type: string, const: CHANGE_TEMPLATE}
+                expected_revision: {type: integer}
+              oneOf:
+                - required: [selected_result_id]
+                - required: [template_id, confirmation]
+      responses:
+        "200": {description: Updated project}
+        "409": {$ref: '#/components/responses/Conflict'}
+    delete:
+      summary: Revoke access and queue physical deletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmation]
+              properties:
+                confirmation: {const: DELETE}
+      responses:
+        "202": {description: Deletion queued}
+  /projects/{project_id}/undo:
+    parameters:
+      - {$ref: '#/components/parameters/ProjectId'}
+    post:
+      summary: Restore previous still-valid face assignment snapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_revision]
+              properties: {expected_revision: {type: integer}}
+      responses:
+        "200": {description: Updated project}
+        "409": {$ref: '#/components/responses/Conflict'}
+  /projects/{project_id}/sources:
+    parameters:
+      - {$ref: '#/components/parameters/ProjectId'}
+    post:
+      summary: Validate and normalize one authorized source photo
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image, upload_key, consent_version, consent_granted]
+              properties:
+                image: {type: string, format: binary}
+                upload_key: {type: string, maxLength: 120}
+                consent_version: {type: string, maxLength: 40}
+                consent_granted: {type: string, const: "true"}
+      responses:
+        "201": {description: Validated source}
+        "413": {description: Upload too large}
+        "422": {description: Invalid image or face}
+  /projects/{project_id}/slots/{slot_id}:
+    parameters:
+      - {$ref: '#/components/parameters/ProjectId'}
+      - name: slot_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    put:
+      summary: Bind ready source to stable slot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_id, expected_revision]
+              properties:
+                source_id: {type: string, format: uuid}
+                expected_revision: {type: integer}
+                move: {type: boolean, default: false}
+                character_sheet_id: {type: [string, "null"], format: uuid, description: Approved same-source sheet allowed by current template strategy. Omission uses a local layout when enabled.}
+      responses:
+        "200": {description: Updated project}
+        "409": {$ref: '#/components/responses/Conflict'}
+  /sources/{source_id}/thumbnail:
+    get:
+      summary: Stream retained owner-only source thumbnail
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200": {description: JPEG thumbnail, content: {image/jpeg: {schema: {type: string, format: binary}}}}
+        "404": {$ref: '#/components/responses/NotFound'}
+  /projects/{project_id}/character-sheets:
+    parameters:
+      - {$ref: '#/components/parameters/ProjectId'}
+    post:
+      summary: Build a private source layout or enqueue reviewed multi-view preparation without consuming a portrait allowance
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Required for generated mode; replay returns the same sheet and job
+          schema: {type: string, maxLength: 180}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [source_id, mode, expected_revision]
+              properties:
+                source_id: {type: string, format: uuid}
+                mode: {enum: [source_layout, generated]}
+                expected_revision: {type: integer}
+      responses:
+        "200":
+          description: Local sheet or reused generated preparation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sheet]
+                properties:
+                  sheet: {$ref: '#/components/schemas/CharacterSheet'}
+                  job: {$ref: '#/components/schemas/Job'}
+        "202": {description: Generated sheet and preparation job queued; original must already be assigned}
+        "404": {$ref: '#/components/responses/NotFound'}
+        "409": {$ref: '#/components/responses/Conflict'}
+        "429": {description: Preparation rate or account limit reached}
+        "503": {description: Route, storage or budget unavailable}
+  /character-sheets/{sheet_id}/preview:
+    get:
+      summary: Stream owner-only private no-store JPEG while project, original consent and retention remain valid
+      parameters:
+        - name: sheet_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200": {description: Character sheet JPEG, content: {image/jpeg: {schema: {type: string, format: binary}}}}
+        "404": {$ref: '#/components/responses/NotFound'}
+  /character-sheets/{sheet_id}/review:
+    post:
+      summary: Approve or reject a generated sheet in review; approval does not automatically change a slot assignment
+      parameters:
+        - name: sheet_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision, expected_revision]
+              properties:
+                decision: {enum: [approve, reject]}
+                expected_revision: {type: integer}
+      responses:
+        "200": {description: Sheet metadata and incremented project revision}
+        "404": {$ref: '#/components/responses/NotFound'}
+        "409": {description: Stale revision, active job, existing result, unassigned/expired source or sheet no longer reviewable}
+  /projects/{project_id}/jobs:
+    parameters:
+      - {$ref: '#/components/parameters/ProjectId'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
+    post:
+      summary: Atomically reserve budget, then enqueue generation or correction without a usage-count quota
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation, expected_revision]
+              properties:
+                operation: {const: creation}
+                expected_revision: {type: integer}
+      responses:
+        "202": {description: Accepted job, content: {application/json: {schema: {$ref: '#/components/schemas/Job'}}}}
+        "409": {$ref: '#/components/responses/Conflict'}
+        "503": {description: Admission, budget, or gateway disabled}
+  /jobs/{job_id}:
+    get:
+      summary: Read durable job status
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200": {description: Job, content: {application/json: {schema: {$ref: '#/components/schemas/Job'}}}}
+        "404": {$ref: '#/components/responses/NotFound'}
+  /results/{result_id}/preview:
+    get:
+      summary: Stream owner-only watermarked preview
+      parameters:
+        - {$ref: '#/components/parameters/ResultId'}
+        - name: download
+          in: query
+          required: false
+          description: Set to 1 for a named JPEG attachment. Ownership and expiry checks are identical to inline preview; no payment is required.
+          schema: {type: string, enum: ["1"]}
+        - name: format
+          in: query
+          required: false
+          description: Original preview or a padded canvas (square 768×768, portrait 576×768, story 432×768). Preserves the complete watermarked preview without cropping or upscaling its pixels. Does not generate a new result or extend retention.
+          schema: {type: string, enum: [original, square, portrait, story], default: original}
+      responses:
+        "200": {description: JPEG preview, content: {image/jpeg: {schema: {type: string, format: binary}}}}
+        "400": {description: Unsupported preview format}
+        "404": {$ref: '#/components/responses/NotFound'}
+  /results/{result_id}/master:
+    get:
+      summary: Stream exact entitled master
+      parameters: [{$ref: '#/components/parameters/ResultId'}]
+      responses:
+        "200": {description: JPEG master, content: {image/jpeg: {schema: {type: string, format: binary}}}}
+        "404": {$ref: '#/components/responses/NotFound'}
+  /results/{result_id}/greetings:
+    post:
+      summary: Create local text-finishing version without AI call
+      parameters: [{$ref: '#/components/parameters/ResultId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, expected_revision]
+              properties:
+                text: {type: string, maxLength: 48}
+                expected_revision: {type: integer}
+      responses:
+        "201": {description: Result version}
+  /results/{result_id}/corrections:
+    post:
+      summary: Admit one targeted correction against exact parent result
+      parameters:
+        - {$ref: '#/components/parameters/ResultId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_slot_id, operation, expected_revision]
+              properties:
+                target_slot_id: {type: string, format: uuid}
+                operation: {enum: [enhance, replace_reference]}
+                replacement_source_id: {type: [string, "null"], format: uuid}
+                expected_revision: {type: integer}
+      responses:
+        "202": {description: Correction accepted, content: {application/json: {schema: {$ref: '#/components/schemas/Job'}}}}
+        "409": {$ref: '#/components/responses/Conflict'}
+  /results/{result_id}/feedback:
+    post:
+      summary: Record explicit per-slot issue or all-person acceptance
+      parameters: [{$ref: '#/components/parameters/ResultId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                slot_id: {type: [string, "null"], format: uuid}
+                issue: {enum: ["", likeness, wrong, missing, duplicate, other]}
+                accepted: {type: [boolean, "null"]}
+      responses:
+        "201": {description: Feedback stored}
+  /results/{result_id}/orders:
+    post:
+      summary: Create order for exact non-synthetic result version
+      parameters:
+        - {$ref: '#/components/parameters/ResultId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        "201": {description: Order created}
+        "409": {$ref: '#/components/responses/Conflict'}
+  /orders:
+    get:
+      summary: List owner orders
+      responses:
+        "200": {description: Orders}
+  /orders/{order_id}:
+    get:
+      summary: Read payment and fulfillment state
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200": {description: Order}
+        "404": {$ref: '#/components/responses/NotFound'}
+  /orders/{order_id}/refresh:
+    post:
+      summary: Throttled authenticated provider-status refresh
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200": {description: Updated order}
+        "404": {$ref: '#/components/responses/NotFound'}
+        "503": {description: Payment provider unavailable}
+  /payments/webhook:
+    post:
+      security: []
+      summary: Verify Midtrans signature and authenticated provider status before entitlement
+      responses:
+        "200": {description: Accepted or idempotent replay}
+        "400": {description: Invalid notification}
+        "409": {description: Not settled or mismatch}
+  /support/account-access:
+    post:
+      security: []
+      summary: Record public account-access help in the staff admin inbox without checking account existence
+      description: Same-origin CSRF protection applies. Limited to five requests per network per hour. No files, image grants, account existence confirmation, delivery guarantee or response-time promise.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, subject, message]
+              properties:
+                email: {type: string, format: email, maxLength: 254}
+                subject: {type: string, minLength: 1, maxLength: 120}
+                message: {type: string, minLength: 10, maxLength: 2000}
+      responses:
+        "202":
+          description: Identical generic receipt for registered and unregistered addresses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received: {type: boolean, const: true}
+                  message: {type: string}
+        "400": {description: Invalid input}
+        "403": {description: CSRF token missing or invalid}
+        "429": {description: Network rate limit reached}
+  /support/tickets:
+    get:
+      summary: List owner tickets and active temporary image grants
+      responses:
+        "200":
+          description: Tickets and grants; legacy reply remains the staff reply and messages are immutable owner follow-ups in chronological order
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {type: string, format: uuid}
+                        reply: {type: string}
+                        messages: {type: array, items: {$ref: '#/components/schemas/SupportReply'}}
+                        updated_at: {type: string, format: date-time}
+                  grants: {type: array, items: {type: object}}
+    post:
+      summary: Create owner ticket and optional 24-hour image access grant
+      responses:
+        "201": {description: Ticket created}
+  /support/tickets/{ticket_id}/replies:
+    post:
+      summary: Append an immutable owner reply and return ticket to waiting status
+      description: Requires ticket ownership and a CSRF token. Limited to twenty replies per owner and network per hour. Existing staff reply is preserved.
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [message]
+              properties:
+                message: {type: string, minLength: 10, maxLength: 2000}
+      responses:
+        "201":
+          description: Reply created with current waiting status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: '#/components/schemas/SupportReply'}
+                  - type: object
+                    properties:
+                      status: {type: string, const: waiting}
+        "400": {description: Invalid reply}
+        "401": {$ref: '#/components/responses/Unauthorized'}
+        "404": {$ref: '#/components/responses/NotFound'}
+        "429": {description: Reply rate limit reached}
+  /support/grants/{grant_id}:
+    delete:
+      summary: Revoke owner-created temporary image access
+      parameters:
+        - name: grant_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200": {description: Grant revoked}
+        "404": {$ref: '#/components/responses/NotFound'}
+  /analytics:
+    post:
+      summary: Record allowlisted non-sensitive client interaction event
+      responses:
+        "202": {description: Event accepted}
+  /operator/projects/{project_id}/media/{media_id}:
+    get:
+      security:
+        - session: []
+      summary: Stream grant-bound project media to one MFA-authenticated operator and audit access
+      parameters:
+        - {$ref: '#/components/parameters/ProjectId'}
+        - name: media_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200": {description: Private JPEG, content: {image/jpeg: {schema: {type: string, format: binary}}}}
+        "404": {$ref: '#/components/responses/NotFound'}
+  /operator/orders/{order_id}/refunds:
+    post:
+      security:
+        - session: []
+      summary: Record idempotent full-refund request; staff MFA and recent authentication required
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties: {reason: {type: string, minLength: 10, maxLength: 500}}
+      responses:
+        "201": {description: Refund request recorded}
+        "409": {$ref: '#/components/responses/Conflict'}

@@ -1,0 +1,30 @@
+[
+  {
+    "browser": "Chromium desktop",
+    "setup": "Localhost, fresh browser context, no CPU or network throttling; synthetic catalog",
+    "navigation": [
+      {
+        "responseEnd": 1.6000000089406967,
+        "domContentLoaded": 38.6000000089407,
+        "load": 42.6000000089407
+      }
+    ],
+    "resourceTransferBytes": 962879,
+    "longTasksSupported": true,
+    "longTasks": []
+  },
+  {
+    "browser": "WebKit mobile",
+    "setup": "Localhost, fresh browser context, no CPU or network throttling; synthetic catalog",
+    "navigation": [
+      {
+        "responseEnd": 1,
+        "domContentLoaded": 144,
+        "load": 196
+      }
+    ],
+    "resourceTransferBytes": 483299,
+    "longTasksSupported": false,
+    "longTasks": []
+  }
+]

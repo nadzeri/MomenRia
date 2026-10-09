@@ -1,0 +1,136 @@
+[WebServer] [09/Oct/2026 19:35:42] "GET /health/ready HTTP/1.1" 200 57
+[WebServer] [09/Oct/2026 19:35:45] "GET /health/ready HTTP/1.1" 200 57
+
+Running 1 test using 1 worker
+
+(node:91550) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [09/Oct/2026 19:35:46] "GET /accounts/login/ HTTP/1.1" 200 2458
+[WebServer] [09/Oct/2026 19:35:46] "GET /static/app/account.css?v=20261009 HTTP/1.1" 200 4228
+[WebServer] [09/Oct/2026 19:35:46] "GET /static/app/server.css?v=20261009-artsy HTTP/1.1" 200 52285
+[WebServer] [09/Oct/2026 19:35:46] "GET /static/app/assets/fonts/bricolage-grotesque-latin.woff2 HTTP/1.1" 200 76868
+[WebServer] [09/Oct/2026 19:35:47] "POST /accounts/login/ HTTP/1.1" 302 0
+[WebServer] [09/Oct/2026 19:35:47] "GET / HTTP/1.1" 200 3093
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/server.css?v=20261009-design-revamp HTTP/1.1" 200 52285
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/server.js?v=20261009-design-revamp HTTP/1.1" 200 108169
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/assets/studio.webp HTTP/1.1" 200 53988
+[WebServer] [09/Oct/2026 19:35:47] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/assets/photo-guide.jpg HTTP/1.1" 200 37835
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/assets/photo-guide-right.jpg HTTP/1.1" 200 38837
+[WebServer] [09/Oct/2026 19:35:47] "GET /api/v1/templates HTTP/1.1" 200 23053
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/assets/lebaran.webp HTTP/1.1" 200 89186
+[WebServer] [09/Oct/2026 19:35:47] "GET /api/v1/projects HTTP/1.1" 200 60
+[WebServer] [09/Oct/2026 19:35:47] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/assets/events/galungan.webp HTTP/1.1" 200 120074
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/assets/events/idul-adha.webp HTTP/1.1" 200 85592
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/assets/events/kemerdekaan.webp HTTP/1.1" 200 87486
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/assets/events/tahun-baru.webp HTTP/1.1" 200 78972
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/assets/events/ramadan.webp HTTP/1.1" 200 109398
+[WebServer] [09/Oct/2026 19:35:47] "GET /static/app/assets/events/natal.webp HTTP/1.1" 200 112674
+[WebServer] [09/Oct/2026 19:35:47] "POST /api/v1/projects HTTP/1.1" 201 1261
+[WebServer] Unprocessable Content: /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39/sources
+[WebServer] 2026-10-09 19:35:47,399 WARNING request_id=- django.request Unprocessable Content: /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39/sources
+[WebServer] [09/Oct/2026 19:35:47] "POST /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39/sources HTTP/1.1" 422 174
+[WebServer] [09/Oct/2026 19:35:47] "POST /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39/sources HTTP/1.1" 201 159
+[WebServer] [09/Oct/2026 19:35:47] "PUT /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39/slots/87be4388-894c-5904-975f-56e037a1810b HTTP/1.1" 200 2149
+[WebServer] [09/Oct/2026 19:35:47] "GET /api/v1/sources/1a73c46c-877b-47e4-b3a0-c0364bb6f178/thumbnail HTTP/1.1" 200 22434
+[WebServer] [09/Oct/2026 19:35:48] "POST /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39/sources HTTP/1.1" 201 159
+[WebServer] [09/Oct/2026 19:35:48] "PUT /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39/slots/cdb6e7d2-5fc3-52f6-a417-25b49195dddb HTTP/1.1" 200 3045
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/sources/32720200-34c3-4ba5-8db4-b1e78bae77e2/thumbnail HTTP/1.1" 200 23457
+[WebServer] [09/Oct/2026 19:35:48] "GET / HTTP/1.1" 200 3093
+[WebServer] [09/Oct/2026 19:35:48] "GET /static/app/server.css?v=20261009-design-revamp HTTP/1.1" 304 0
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/templates HTTP/1.1" 200 23053
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 3045
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/projects HTTP/1.1" 200 3105
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/sources/1a73c46c-877b-47e4-b3a0-c0364bb6f178/thumbnail HTTP/1.1" 200 22434
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/sources/32720200-34c3-4ba5-8db4-b1e78bae77e2/thumbnail HTTP/1.1" 200 23457
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 3045
+[WebServer] [09/Oct/2026 19:35:48] "POST /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39/jobs HTTP/1.1" 202 425
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/projects HTTP/1.1" 200 3531
+[WebServer] [09/Oct/2026 19:35:48] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 3471
+[WebServer] [09/Oct/2026 19:35:50] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:50] "GET /api/v1/projects HTTP/1.1" 200 4494
+[WebServer] [09/Oct/2026 19:35:50] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 4434
+[WebServer] [09/Oct/2026 19:35:50] "GET /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/preview HTTP/1.1" 200 108754
+[WebServer] [09/Oct/2026 19:35:54] "GET /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/preview?download=1 HTTP/1.1" 200 108754
+[WebServer] Not Found: /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/master
+[WebServer] 2026-10-09 19:35:54,905 WARNING request_id=- django.request Not Found: /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/master
+[WebServer] [09/Oct/2026 19:35:54] "GET /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/master HTTP/1.1" 404 163
+[WebServer] [09/Oct/2026 19:35:55] "GET /accounts/login/ HTTP/1.1" 200 2458
+[WebServer] [09/Oct/2026 19:35:55] "GET /static/app/assets/fonts/bricolage-grotesque-latin.woff2 HTTP/1.1" 200 76868
+[WebServer] [09/Oct/2026 19:35:55] "GET /static/app/account.css?v=20261009 HTTP/1.1" 200 4228
+[WebServer] [09/Oct/2026 19:35:55] "GET /static/app/server.css?v=20261009-artsy HTTP/1.1" 200 52285
+[WebServer] [09/Oct/2026 19:35:55] "POST /accounts/login/ HTTP/1.1" 302 0
+[WebServer] [09/Oct/2026 19:35:55] "GET / HTTP/1.1" 200 3093
+[WebServer] [09/Oct/2026 19:35:55] "GET /static/app/server.css?v=20261009-design-revamp HTTP/1.1" 200 52285
+[WebServer] [09/Oct/2026 19:35:55] "GET /static/app/server.js?v=20261009-design-revamp HTTP/1.1" 200 108169
+[WebServer] [09/Oct/2026 19:35:55] "GET /static/app/assets/studio.webp HTTP/1.1" 200 53988
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/session HTTP/1.1" 200 467
+[WebServer] [09/Oct/2026 19:35:55] "GET /static/app/assets/photo-guide.jpg HTTP/1.1" 200 37835
+[WebServer] [09/Oct/2026 19:35:55] "GET /static/app/assets/photo-guide-right.jpg HTTP/1.1" 200 38837
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/templates HTTP/1.1" 200 23053
+[WebServer] [09/Oct/2026 19:35:55] "GET /static/app/assets/lebaran.webp HTTP/1.1" 200 89186
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/projects HTTP/1.1" 200 60
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/session HTTP/1.1" 200 467
+[WebServer] Not Found: /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/preview
+[WebServer] 2026-10-09 19:35:55,484 WARNING request_id=- django.request Not Found: /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/preview
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/preview?download=1 HTTP/1.1" 404 163
+[WebServer] [09/Oct/2026 19:35:55] "POST /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/feedback HTTP/1.1" 201 46
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/projects HTTP/1.1" 200 4592
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 4532
+[WebServer] [09/Oct/2026 19:35:55] "POST /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/greetings HTTP/1.1" 201 129
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/projects HTTP/1.1" 200 5506
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 5446
+[WebServer] [09/Oct/2026 19:35:55] "GET /api/v1/results/77352a02-8f2a-4412-80d6-f40ca48f6c09/preview HTTP/1.1" 200 109755
+[WebServer] [09/Oct/2026 19:35:55] "PATCH /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 5446
+[WebServer] [09/Oct/2026 19:35:56] "POST /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/feedback HTTP/1.1" 201 46
+[WebServer] [09/Oct/2026 19:35:56] "POST /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/corrections HTTP/1.1" 202 427
+[WebServer] [09/Oct/2026 19:35:56] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:56] "GET /api/v1/projects HTTP/1.1" 200 6078
+[WebServer] [09/Oct/2026 19:35:56] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 6018
+[WebServer] [09/Oct/2026 19:35:57] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:57] "GET /api/v1/projects HTTP/1.1" 200 7010
+[WebServer] [09/Oct/2026 19:35:57] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 6950
+[WebServer] [09/Oct/2026 19:35:57] "GET /api/v1/results/be3913bb-c67a-4246-8029-17989954b90b/preview HTTP/1.1" 200 108754
+[WebServer] [09/Oct/2026 19:35:58] "POST /api/v1/results/be3913bb-c67a-4246-8029-17989954b90b/feedback HTTP/1.1" 201 46
+[WebServer] [09/Oct/2026 19:35:58] "POST /api/v1/results/be3913bb-c67a-4246-8029-17989954b90b/corrections HTTP/1.1" 202 427
+[WebServer] [09/Oct/2026 19:35:58] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:58] "GET /api/v1/projects HTTP/1.1" 200 7580
+[WebServer] [09/Oct/2026 19:35:58] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 7520
+[WebServer] [09/Oct/2026 19:35:59] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:35:59] "GET /api/v1/projects HTTP/1.1" 200 7584
+[WebServer] [09/Oct/2026 19:35:59] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 7524
+[WebServer] [09/Oct/2026 19:36:04] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:36:04] "GET /api/v1/projects HTTP/1.1" 200 8512
+[WebServer] [09/Oct/2026 19:36:04] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 8452
+[WebServer] [09/Oct/2026 19:36:04] "GET /api/v1/results/72571c27-a43b-40e2-b74e-f72f1f6518dd/preview HTTP/1.1" 200 108754
+[WebServer] [09/Oct/2026 19:36:05] "POST /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39/jobs HTTP/1.1" 202 425
+[WebServer] [09/Oct/2026 19:36:05] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:36:05] "GET /api/v1/projects HTTP/1.1" 200 8939
+[WebServer] [09/Oct/2026 19:36:05] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 8879
+[WebServer] [09/Oct/2026 19:36:06] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] [09/Oct/2026 19:36:06] "GET /api/v1/projects HTTP/1.1" 200 9869
+[WebServer] [09/Oct/2026 19:36:06] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 200 9809
+[WebServer] [09/Oct/2026 19:36:06] "GET /api/v1/results/f7a86181-8eb2-4674-b50e-9cc7bf4fb24e/preview HTTP/1.1" 200 108754
+[WebServer] [09/Oct/2026 19:36:07] "GET /api/v1/support/tickets HTTP/1.1" 200 27
+[WebServer] [09/Oct/2026 19:36:07] "POST /api/v1/support/tickets HTTP/1.1" 201 125
+[WebServer] [09/Oct/2026 19:36:07] "GET /api/v1/support/tickets HTTP/1.1" 200 551
+[WebServer] [09/Oct/2026 19:36:07] "DELETE /api/v1/support/grants/9d99013d-5f0e-4710-91dc-35a396106bf2 HTTP/1.1" 200 17
+[WebServer] [09/Oct/2026 19:36:07] "GET /api/v1/support/tickets HTTP/1.1" 200 401
+[WebServer] [09/Oct/2026 19:36:07] "DELETE /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 202 123
+[WebServer] [09/Oct/2026 19:36:07] "GET /api/v1/projects HTTP/1.1" 200 60
+[WebServer] [09/Oct/2026 19:36:07] "GET /api/v1/session HTTP/1.1" 200 465
+[WebServer] Not Found: /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39
+[WebServer] 2026-10-09 19:36:07,534 WARNING request_id=- django.request Not Found: /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39
+[WebServer] [09/Oct/2026 19:36:07] "GET /api/v1/projects/22cae603-ea9e-4a76-b617-0ea482b12d39 HTTP/1.1" 404 164
+[WebServer] Not Found: /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/preview
+[WebServer] 2026-10-09 19:36:07,607 WARNING request_id=- django.request Not Found: /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/preview
+[WebServer] [09/Oct/2026 19:36:07] "GET /api/v1/results/b272e2a8-41fb-44f8-9b60-0b2e1424962b/preview HTTP/1.1" 404 163
+  ✓  1 [mobile] › tests/e2e/launch.spec.js:103:1 › complete private portrait lifecycle through real Django and synthetic worker (21.5s)
+
+  1 passed (28.2s)

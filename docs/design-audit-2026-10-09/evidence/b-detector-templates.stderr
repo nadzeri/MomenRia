@@ -1,0 +1,2 @@
+impeccable detect: could not read linked stylesheet {% static 'app/server.css' %}?v=20260926-artsy (resolved to /Users/nadzeri/Documents/Upstacker/MomenRia/templates/allauth/layouts/{% static 'app/server.css' %}); color and custom-property rules will be incomplete
+impeccable detect: could not read linked stylesheet {% static 'app/server.css' %}?v=20260926-competitive-workflow (resolved to /Users/nadzeri/Documents/Upstacker/MomenRia/templates/{% static 'app/server.css' %}); color and custom-property rules will be incomplete

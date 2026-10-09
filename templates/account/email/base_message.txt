@@ -1,0 +1,8 @@
+{% autoescape off %}Hai!
+
+{% block content %}{% endblock content %}
+
+Sampai ketemu di MomenRia,
+Tim MomenRia
+{{ current_site.domain }}
+{% endautoescape %}

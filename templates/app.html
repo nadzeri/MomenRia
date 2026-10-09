@@ -1,0 +1,32 @@
+{% load static %}
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f3ec">
+  <meta name="description" content="Belum sempat kumpul? Bikin foto bareng dari foto masing-masing dengan AI. Pilih template buat 1–4 orang, cek wajahnya, lalu download preview gratis.">
+  <meta name="referrer" content="same-origin">
+  <meta property="og:title" content="MomenRia — Yuk, foto bareng">
+  <meta property="og:description" content="Lagi jauh? Foto bareng tetap bisa. Bikin foto bareng dari foto masing-masing dengan AI. Mulai gratis, yuk.">
+  <meta property="og:type" content="website">
+  <title>MomenRia — Yuk, foto bareng</title>
+  <link rel="icon" href="{% static 'app/favicon.svg' %}" type="image/svg+xml">
+  <link rel="preload" href="{% static 'app/assets/fonts/bricolage-grotesque-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static 'app/server.css' %}?v=20261009-design-revamp">
+  <script src="{% static 'app/server.js' %}?v=20261009-design-revamp" defer></script>
+</head>
+<body data-source-retention="{{ source_retention_days }}" data-result-retention="{{ result_retention_days }}" data-upload-limit="{{ upload_max_bytes }}">
+  <a class="skip" href="#main">Lewati ke konten</a>
+  <header class="topbar" id="header"><div class="topbar-inner"><a class="brand" href="/">MomenRia.</a></div></header>
+  <div class="server-banner" id="demo-banner" role="note" hidden>Demo bersama: semua pengunjung dapat melihat dan menghapus foto demo. Jangan upload foto pribadi.</div>
+  <div id="connection-status" class="connection-status" hidden><p id="connection-message" role="alert"></p><button class="btn secondary small" data-retry-connection>Coba hubungkan lagi</button></div>
+  <div id="job-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div class="app-layout">
+    <main class="app-main" id="main" tabindex="-1"><div class="loading-text"><h1>Lagi jauh? Foto bareng tetap bisa.</h1><p>Pakai foto masing-masing untuk bikin foto bareng dengan AI. Pilih suasana, pakai foto yang sudah diizinkan, cek hasilnya, lalu download preview gratis.</p><p>Studio memerlukan JavaScript. Halaman akun dan pemulihan kata sandi dapat dibuka melalui tautan di bawah.</p></div></main>
+  </div>
+  <dialog class="dialog" id="dialog" aria-labelledby="dialog-title"></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <noscript><section class="page prose-page"><h2>Bantuan tanpa JavaScript</h2><p>Aktifkan JavaScript untuk memilih template dan memakai studio. Kamu tetap bisa <a class="text-link" href="/accounts/login/">masuk ke akun</a> atau <a class="text-link" href="/accounts/password/reset/">memulihkan kata sandi</a>.</p><h2>Sebelum memakai foto pribadi</h2><p>Pastikan kamu berhak memakai semua foto, termasuk izin orang tua atau wali untuk foto anak. Foto asli disimpan hingga {{ source_retention_days }} hari; hasil hingga {{ result_retention_days }} hari. Preview gratis berwatermark, hingga 768 px. Peluncuran foto pribadi menunggu bukti privasi penyedia dan persetujuan operasional.</p></section></noscript>
+</body>
+</html>

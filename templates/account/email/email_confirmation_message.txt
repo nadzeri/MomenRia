@@ -1,0 +1,10 @@
+{% extends "account/email/base_message.txt" %}
+{% block content %}{% autoescape off %}Email ini dipakai untuk mendaftar akun MomenRia.
+
+{% if code %}Masukkan kode ini di halaman yang sedang kamu buka untuk verifikasi emailmu:
+
+{{ code }}{% else %}Kalau ini kamu, buka link di bawah untuk verifikasi email dan lanjut bikin foto:
+
+{{ activate_url }}{% endif %}
+
+Kalau kamu nggak mendaftar, abaikan email ini, ya. Jangan bagikan link atau kode verifikasi ini ke siapa pun.{% endautoescape %}{% endblock content %}

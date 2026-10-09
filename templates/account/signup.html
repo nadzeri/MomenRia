@@ -1,0 +1,14 @@
+{% extends "account/base_entrance.html" %}
+{% block head_title %}Buat akun{% endblock %}
+{% block content %}
+<h1>Bikin akun, lalu foto bareng.</h1>
+<p>Daftarnya gratis, kok. Setelah itu, verifikasi email dulu sebelum upload foto pertama, ya.</p>
+<form method="post" action="{% url 'account_signup' %}">
+  {% csrf_token %}
+  {{ form.as_div }}
+  {{ redirect_field }}
+  <button type="submit">Buat akun</button>
+</form>
+<p>Dengan bikin akun, kamu setuju dengan <a href="/#/terms">ketentuan penggunaan</a> dan sudah membaca <a href="/#/privacy">informasi privasi</a>.</p>
+<p>Sudah punya akun? <a href="{% firstof account_return_login_url login_url %}">Masuk</a></p>
+{% endblock %}
