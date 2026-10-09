@@ -288,6 +288,7 @@ def _write_deletion_tombstone(project_id, deletion_epoch, deleted_at):
 
 def delete_project(owner, project_id):
     from commerce.models import Entitlement, Order
+    from commerce.services import resolve_generation_failure
 
     now = timezone.now()
     with transaction.atomic():
@@ -308,6 +309,8 @@ def delete_project(owner, project_id):
         Entitlement.objects.filter(result_id_snapshot__in=project.results.values("id"), revoked_at__isnull=True).update(revoked_at=now)
         Order.objects.filter(project=project, payment_state__in=(Order.PaymentState.CREATING, Order.PaymentState.PENDING, Order.PaymentState.UNCERTAIN)).update(payment_state=Order.PaymentState.CANCELLED, fulfillment_state=Order.FulfillmentState.ENDED)
         Order.objects.filter(project=project, payment_state=Order.PaymentState.PAID).update(fulfillment_state=Order.FulfillmentState.ENDED)
+        for order in Order.objects.filter(project=project, purpose=Order.Purpose.GENERATION, payment_state=Order.PaymentState.PAID, result__isnull=True):
+            resolve_generation_failure(order, "Foto berbayar dihapus sebelum hasil dapat diserahkan")
         SupportGrant.objects.filter(project=project, revoked_at__isnull=True).update(revoked_at=now)
         task = DeletionTask.objects.create(project_id_snapshot=project.id, deletion_epoch=project.deletion_epoch, next_run_at=now)
         OutboxEvent.objects.create(topic="project.deleted", payload={"project_id": str(project.id), "deletion_epoch": project.deletion_epoch})

@@ -14,7 +14,7 @@ from .services import record_refund_outcome
 
 class RefundOutcomeForm(AuditReasonForm):
     outcome = forms.ChoiceField(choices=[(value, label) for value, label in Refund.State.choices if value != Refund.State.REQUESTED])
-    amount_idr = forms.IntegerField(min_value=1, label="Full refund amount (IDR)")
+    amount_idr = forms.IntegerField(min_value=1, label="This refund request amount (IDR)")
     reference = forms.CharField(min_length=5, max_length=180, label="External refund or tracking reference")
     evidence = forms.CharField(min_length=10, max_length=1000, widget=forms.Textarea, label="Verified dashboard/report or approved transfer evidence")
 

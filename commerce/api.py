@@ -22,16 +22,19 @@ def order_json(order):
     qr_url = validated_qr_url(order.provider_payload.get("qr_url"))
     if qr_url and order.payment_state in (order.PaymentState.CREATING, order.PaymentState.PENDING, order.PaymentState.UNCERTAIN) and order.expires_at > timezone.now() and (not order.job_id or order.job.state == "awaiting_payment"):
         instructions["qr_url"] = qr_url
+    refunds = list(order.refunds.order_by("created_at"))
+    returned = order.amount_idr if any(item.state == "succeeded" for item in refunds) else order.provider_payload.get("partial_refund_amount_idr", 0)
     return {
         "id": str(order.id), "merchant_reference": order.merchant_reference,
         "result_id": str(order.result_id_snapshot) if order.result_id_snapshot else None,
         "job_id": str(order.job_id) if order.job_id else None, "purpose": order.purpose,
         "job_state": order.job.state if order.job_id else None, "project_id": str(order.project_id) if order.project_id else None,
         "amount": order.amount_idr, "currency": order.currency,
+        "refund_observed_idr": returned, "refund_remaining_idr": order.amount_idr - returned,
         "payment_state": order.payment_state, "fulfillment_state": order.fulfillment_state,
         "payment_instructions": instructions, "expires_at": order.expires_at.isoformat(),
         "download_url": f"/api/v1/results/{order.result_id_snapshot}/master" if downloadable else None,
-        "refunds": [{"id": str(item.id), "state": item.state, "amount_idr": item.amount_idr} for item in order.refunds.order_by("created_at")],
+        "refunds": [{"id": str(item.id), "state": item.state, "amount_idr": item.amount_idr} for item in refunds],
     }
 
 

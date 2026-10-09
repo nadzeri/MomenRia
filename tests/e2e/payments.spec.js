@@ -35,6 +35,11 @@ test('mocked QRIS stays on-site and renders uncertain, queued, failed and refund
     expect(new URL(page.url()).hostname).toBe('127.0.0.1');
     if(payment==='paid') await expect(page.locator('.payment-qr')).toHaveCount(0);
   }
+  order = { ...order, payment_state:'paid', job_state:'cancelled', fulfillment_state:'delivery_failed', refunds:[], refund_observed_idr:990, refund_remaining_idr:8910 };
+  await page.reload();
+  await expect(page.locator('#orders-list')).toContainText('Pengembalian sebagian terkonfirmasi: Rp990');
+  await expect(page.locator('#orders-list')).toContainText('Sisa pembayaran Rp8.910');
+  await expect(page.locator('.payment-qr')).toHaveCount(0);
 });
 
 test('three lifetime free pictures, one paid creation, recovery and order-linked support', async ({ page, browser }, testInfo) => {

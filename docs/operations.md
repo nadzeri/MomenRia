@@ -27,6 +27,8 @@ The web service needs write access to the result volume because greeting version
 
 Rollback application image only while schema remains compatible. Do not restore an older database over new orders. Reconcile payment provider records before reopening admissions.
 
+Do not reverse the late-receipt constraint migration after multiple verified receipts exist for one historical result. Extra payments retain their own receipt and refund/support resolution without another delivery. Refunding a verified extra duplicate payment preserves the originally funded picture; refunding the original payment ends its access.
+
 ### Three-free-picture cutover
 
 1. Pause new paid checkout with `PAYMENT_CHECKOUT_ENABLED=false` and disable new admissions. Preserve configured payment reconciliation, history, deletion and authorized downloads. Back up database/media and deletion tombstones before migrating.
@@ -71,6 +73,8 @@ Confirm delivery cannot be restored and the approved policy permits refund. Crea
 Open the Refund record in staff admin and choose **Record external refund outcome**. Enter the exact order amount in IDR, external reference, verified dashboard/report or approved manual-transfer evidence, outcome and audit reason. Staff MFA, refund-change permission and recent authentication protect submission. Audit events retain actor, timestamp, amount, reference, reason and evidence. Processing/uncertain outcomes do not revoke access. Verified success revokes future root/derived access and stops dispatch; completed records cannot be rewritten, and payment replay does not restore access. Already downloaded copies cannot be recalled.
 
 On timeout, query the same provider request before retrying; never generate a new refund identity. Reconcile against settlement reports daily. If the provider method/window cannot provide the approved remedy, staff must verify an owner-approved manual-transfer fallback and record its bank/report reference and verified completion. Final eligibility, support deadlines and fallback ownership must be approved before release; live submission remains an external release gate.
+
+An authenticated partial refund records the cumulative amount already returned, the remaining obligation and one support task; an undelivered job is held for resolution. It does not revoke delivered access or imply a full refund. Before issuing any further transfer, compare the verified partial amount with the provider report and refund only the remaining approved obligation. An obsolete full-amount request is blocked: record it failed only after proving it did not transfer, then request the remaining amount with a new audited key. Verified full-provider status can close the existing record. Successful completion of the remaining refund ends access when cumulative returned money equals the original order amount; never return the full order total a second time.
 
 ### Paid-file failure runbook
 

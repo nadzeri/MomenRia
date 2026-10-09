@@ -30,8 +30,8 @@ All tests use isolated databases, private media and example pictures. Fake AI/pa
 
 | Check | Observed result |
 |---|---|
-| Full Django suite on PostgreSQL | 163/163 passed, including admission, order/webhook and refund races; no concurrency skips. |
-| Full Django suite on SQLite | 163 run: 157 passed, six PostgreSQL concurrency tests skipped. |
+| Full Django suite on PostgreSQL | 175/175 passed, including admission, order/webhook and refund races; no concurrency skips. |
+| Full Django suite on SQLite | 175 run: 169 passed, six PostgreSQL concurrency tests skipped. |
 | General Playwright desktop/mobile | 60/60 passed. Includes anonymous/no-JavaScript policies, quota-aware isolated accounts, ownership, consent, downloads and recovery. |
 | Separate payment Playwright desktop/mobile | 4/4 passed. Real fake-gateway three-free-to-paid journey plus explicitly mocked QRIS pending/uncertain/failed/refunded presentation. |
 | Node prototype suite | 4/4 passed. Archived prototype was not modified. |
@@ -49,6 +49,8 @@ npm test
 ```
 
 The ordinary browser harness uses ports 8765/8767; the paid harness uses 8775/8777. Never substitute production credentials or database/media paths. UI QRIS screenshots use a labelled simulated QR, intercepted responses and test-only CSP setup; they do not prove provider connectivity, physical scanning or refund transfers. Original download tests compare master hashes/dimensions, not just HTTP success.
+
+A fresh whole-branch review found payment recovery, historical refund/access, paid deletion and retention gaps. Regression tests reproduced them before fixes. They now cover lost-charge QR recovery, late duplicate/revoked historical payments, partial-refund totals and remaining obligations, historical refunded corrections, attributable quota/grant/quarantine changes, root-based correction expiry and physical quarantine cleanup. Refunding an extra duplicate payment preserves original funded access. See [implementation evidence and decisions](midtrans-implementation-evidence.md).
 
 ## Merchant and production gates
 

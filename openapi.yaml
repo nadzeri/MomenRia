@@ -22,6 +22,8 @@ components:
         free_remaining: {type: [integer, "null"]}
         price_idr: {type: integer, const: 9900}
         currency: {const: IDR}
+        refund_observed_idr: {type: integer, minimum: 0, description: Verified amount already returned, including partial refunds}
+        refund_remaining_idr: {type: integer, minimum: 0, description: Maximum remaining amount refundable; policy and staff approval still required}
         checkout_enabled: {type: boolean}
         audit_required: {type: boolean}
     Order:

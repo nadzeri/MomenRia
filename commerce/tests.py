@@ -44,6 +44,131 @@ class GenerationOrderModelTests(TestCase):
 
 
 class MidtransSignatureTests(TestCase):
+    @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_ENV="sandbox")
+    def test_pending_lookup_recovers_same_transaction_qr_with_or_without_actions(self):
+        from .api import order_json
+        from .services import apply_provider_status
+        for index, actions in enumerate((None, [{"name": "generate-qr-code-v2", "method": "GET", "url": "https://api.sandbox.midtrans.com/v4/qris/opaque-code/qr-code"}])):
+            _, order = self.make_order(f"MR-QR-RECOVER-{index}", state="uncertain")
+            _, status = self.notification(order, f"TX-RECOVER-{index}")
+            status.update(transaction_status="pending", status_code="201")
+            if actions:
+                status["actions"] = actions
+            with patch("commerce.services._midtrans_status", return_value=status):
+                recovered = refresh_order(order)
+            expected = actions[0]["url"] if actions else f"https://api.sandbox.midtrans.com/v2/qris/TX-RECOVER-{index}/qr-code"
+            self.assertEqual(order_json(recovered)["payment_instructions"].get("qr_url"), expected)
+            apply_provider_status(recovered, {**status, "actions": []})
+            recovered.refresh_from_db()
+            self.assertEqual(order_json(recovered)["payment_instructions"].get("qr_url"), expected)
+
+    def test_late_legacy_settlement_preserves_revocation_and_opens_resolution(self):
+        from .services import settle_order
+        owner, order = self.make_order("MR-REVOKED-LATE", state="expired")
+        grant = Entitlement.objects.create(owner=owner, result=order.result, result_id_snapshot=order.result_id_snapshot, order=order, revoked_at=timezone.now())
+        for _ in range(2):
+            settle_order(order, "TX-REVOKED-LATE")
+        order.refresh_from_db()
+        grant.refresh_from_db()
+        self.assertEqual(order.payment_state, "paid")
+        self.assertEqual(order.fulfillment_state, "unavailable")
+        self.assertIsNotNone(grant.revoked_at)
+        self.assertEqual(order.refunds.count(), 1)
+        self.assertEqual(order.support_tickets.count(), 1)
+
+    @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_SERVER_KEY="server-key")
+    def test_second_late_legacy_receipt_survives_and_opens_one_duplicate_resolution(self):
+        from .services import settle_order
+        owner, first = self.make_order("MR-FIRST-PAID")
+        settle_order(first, "TX-FIRST-PAID")
+        late = Order.objects.create(owner=owner, project=first.project, result=first.result, offer=first.offer, merchant_reference="MR-SECOND-LATE", payment_state="expired", amount_idr=19900, result_id_snapshot=first.result_id_snapshot, result_sha256=first.result_sha256, result_width=2048, result_height=1536, expires_at=first.expires_at)
+        payload, status = self.notification(late, "TX-SECOND-LATE")
+        with patch("commerce.services._midtrans_status", return_value=status):
+            for _ in range(2):
+                apply_midtrans_notification(payload)
+        late.refresh_from_db()
+        self.assertEqual(late.payment_state, "paid")
+        self.assertEqual(late.fulfillment_state, "unavailable")
+        self.assertEqual(late.provider_transaction_id, "TX-SECOND-LATE")
+        self.assertEqual(late.refunds.count(), 1)
+        self.assertEqual(late.support_tickets.count(), 1)
+        self.assertEqual(Entitlement.objects.filter(owner=owner, revoked_at__isnull=True).count(), 1)
+        from .services import record_refund_outcome
+        from projects.result_services import authorized_root
+        operator = User.objects.create_superuser("duplicate-operator@example.com", "test-password")
+        record_refund_outcome(operator, late.refunds.get().id, outcome="succeeded", amount_idr=19900, reference="REF-DUPLICATE-EXTRA", evidence="Verified only the extra payment was refunded", reason="Original funded picture remains available")
+        self.assertEqual(authorized_root(first.result, owner).id, first.result_id_snapshot)
+        from .services import apply_provider_status
+        apply_provider_status(late, {**status, "transaction_status": "refund", "refund_amount": "19900.00", "duplicate_payment_of": "invalid-provider-value"})
+        late.refresh_from_db()
+        self.assertEqual(late.provider_payload["duplicate_payment_of"], str(first.pk))
+        self.assertEqual(authorized_root(first.result, owner).id, first.result_id_snapshot)
+        _, original_status = self.notification(first, "TX-FIRST-PAID")
+        apply_provider_status(first, {**original_status, "transaction_status": "refund", "refund_amount": "19900.00", "duplicate_payment_of": str(late.pk)})
+        with self.assertRaises(ApiError):
+            authorized_root(first.result, owner)
+
+    def test_partial_refund_is_visible_and_remaining_refund_cannot_overpay(self):
+        from operations.models import AuditEvent
+        from .api import order_json
+        from .services import apply_provider_status, record_refund_outcome
+        _, order = self.make_order("MR-PARTIAL-BEFORE-SETTLEMENT")
+        _, status = self.notification(order, "TX-PARTIAL")
+        status.update(transaction_status="partial_refund", refund_amount="1990.00")
+        for _ in range(2):
+            apply_provider_status(order, status)
+        order.refresh_from_db()
+        self.assertEqual(order.payment_state, "paid")
+        self.assertEqual(order.provider_transaction_id, "TX-PARTIAL")
+        self.assertEqual(order.support_tickets.count(), 1)
+        self.assertEqual(order_json(order)["refund_observed_idr"], 1990)
+        self.assertEqual(order_json(order)["refund_remaining_idr"], 17910)
+        self.assertEqual(AuditEvent.objects.filter(action="refund.partial_observed", object_id=order.id).count(), 1)
+        operator = User.objects.create_superuser("partial-operator@example.com", "test-password")
+        refund, _ = request_refund(operator, order.id, "Approved remaining non-delivery refund", "partial-remaining")
+        self.assertEqual(refund.amount_idr, 17910)
+        values = dict(outcome="succeeded", reference="REF-PARTIAL-REMAINDER", evidence="Verified completed remaining refund with earlier partial report", reason="Confirmed total returned equals the order amount")
+        with self.assertRaises(ApiError):
+            record_refund_outcome(operator, refund.id, amount_idr=19900, **values)
+        record_refund_outcome(operator, refund.id, amount_idr=17910, **values)
+        order.refresh_from_db()
+        self.assertEqual(order.fulfillment_state, "ended")
+
+    def test_partial_refund_keeps_delivered_access_and_blocks_obsolete_full_request(self):
+        from .services import apply_provider_status, settle_order
+        _, order = self.make_order("MR-PARTIAL-DELIVERED")
+        settle_order(order, "TX-PARTIAL-DELIVERED")
+        request_refund(None, order.id, "Approved delivery issue refund", "full-before-partial")
+        _, status = self.notification(order, "TX-PARTIAL-DELIVERED")
+        status.update(transaction_status="partial_refund", refund_amount="1990.00")
+        apply_provider_status(order, status)
+        self.assertTrue(Entitlement.objects.filter(order=order, revoked_at__isnull=True).exists())
+        with self.assertRaises(ApiError) as error:
+            request_refund(None, order.id, "Approved remaining delivery refund", "new-after-partial")
+        self.assertEqual(error.exception.code, "refund_reconciliation_required")
+        with self.assertRaises(ApiError):
+            request_refund(None, order.id, "Approved delivery issue refund", "full-before-partial")
+        apply_provider_status(order, {**status, "transaction_status": "refund", "refund_amount": "19900.00"})
+        order.refresh_from_db()
+        self.assertEqual(order.fulfillment_state, "ended")
+        self.assertEqual(order.refunds.filter(state="succeeded").count(), 1)
+        self.assertFalse(Entitlement.objects.filter(order=order, revoked_at__isnull=True).exists())
+
+    def test_invalid_partial_refund_amount_leaves_payment_unchanged(self):
+        from .services import apply_provider_status
+        _, order = self.make_order("MR-PARTIAL-INVALID")
+        _, status = self.notification(order, "TX-PARTIAL-INVALID")
+        status.update(transaction_status="partial_refund")
+        for amount in ("NaN", "-1", "0", "19900", "19901", "1.5", True, None):
+            with self.assertRaises(ApiError):
+                apply_provider_status(order, {**status, "refund_amount": amount})
+        order.refresh_from_db()
+        self.assertEqual(order.payment_state, "pending")
+        self.assertFalse(order.support_tickets.exists())
+        apply_provider_status(order, {**status, "refund_amount": "1990.00", "partial_refund_amount_idr": 19900})
+        order.refresh_from_db()
+        self.assertEqual(order.provider_payload["partial_refund_amount_idr"], 1990)
+
     def test_staff_refund_outcome_needs_evidence_and_revokes_once(self):
         from operations.models import AuditEvent
         from .services import record_refund_outcome, settle_order

@@ -99,6 +99,56 @@ class HistoricalPricingTests(TestCase):
             call_command("reconcile_pricing_history", apply=True, operator=self.operator.email, reason="Reviewed cohort", stdout=io.StringIO())
         self.assertFalse(Allowance.objects.filter(owner=self.owner).exists())
 
+    def test_refunded_historical_correction_cannot_regain_lineage_access(self):
+        from commerce.models import Order, Refund
+        from projects.result_services import authorized_root
+        root = self.result()
+        self.asset(root, "master", "blue")
+        correction = self.result(kind="correction", parent=root, generation_root=root)
+        master = self.asset(correction, "master", "red")
+        self.asset(correction, "preview", "red")
+        order = Order.objects.create(owner=self.owner, project=self.project, result=correction, offer=self.project.offer, merchant_reference="MR-HISTORY-CORRECTION-REFUND", payment_state="paid", fulfillment_state="ended", amount_idr=9900, result_id_snapshot=correction.id, result_sha256=master.sha256, result_width=2048, result_height=1536, expires_at=correction.expires_at)
+        Entitlement.objects.create(owner=self.owner, result=correction, result_id_snapshot=correction.id, order=order, revoked_at=timezone.now())
+        Refund.objects.create(order=order, amount_idr=9900, reason="Verified historical correction refund", idempotency_key="history-correction-refund", state="succeeded")
+        call_command("reconcile_pricing_history", apply=True, operator=self.operator.email, reason="Reviewed refunded lineage", stdout=io.StringIO())
+        self.assertFalse(Entitlement.objects.filter(result=root, revoked_at__isnull=True).exists())
+        Entitlement.objects.create(owner=self.owner, result=root, result_id_snapshot=root.id, grant_source="legacy")
+        self.client.force_login(self.owner)
+        for result in (root, correction):
+            with self.assertRaises(Exception):
+                authorized_root(result, self.owner)
+            for suffix in ("master", "preview?download=1", "preview?download=1&format=story"):
+                self.assertIn(self.client.get(f"/api/v1/results/{result.id}/{suffix}").status_code, (403, 404))
+
+    def test_quarantined_and_legacy_derivative_media_expire_at_root_deadline(self):
+        from operations.management.commands.maintenance import expire_assets
+        root = self.result(status="quarantined", expires_at=timezone.now() - timedelta(seconds=1))
+        derivative = self.result(kind="correction", parent=root, generation_root=root)
+        assets = [self.asset(root, "master", "blue"), self.asset(root, "preview", "red"), self.asset(derivative, "master", "green")]
+        expire_assets(timezone.now())
+        for result in (root, derivative):
+            result.refresh_from_db()
+            self.assertEqual(result.status, "expired")
+        for asset in assets:
+            asset.refresh_from_db()
+            self.assertIsNotNone(asset.deleted_at)
+            self.assertFalse(asset.file.storage.exists(asset.file.name))
+
+    def test_history_changes_are_audited_even_with_identical_preview(self):
+        from operations.models import AuditEvent
+        root = self.result()
+        self.asset(root, "master", "blue")
+        self.asset(root, "preview", "red")
+        missing = self.result()
+        call_command("reconcile_pricing_history", apply=True, operator=self.operator.email, reason="Reviewed attributable history", stdout=io.StringIO())
+        events = AuditEvent.objects.filter(actor=self.operator, reason="Reviewed attributable history")
+        self.assertTrue(events.filter(action="pricing.quota_reconciled", object_id=self.owner.id).exists())
+        self.assertTrue(events.filter(action="pricing.history_quarantined", object_id=missing.id).exists())
+        Entitlement.objects.filter(result=root).delete()
+        before = events.filter(action="pricing.history_reconciled", object_id=root.id).count()
+        call_command("reconcile_pricing_history", apply=True, operator=self.operator.email, reason="Reviewed attributable history", stdout=io.StringIO())
+        self.assertEqual(events.filter(action="pricing.history_reconciled", object_id=root.id).count(), before + 1)
+
     def test_export_bounds_preserve_native_dimensions_and_limit_memory(self):
         self.assertEqual(export_dimensions(2048, 1536, "story"), (2052, 3648))
         with self.assertRaises(Exception) as error:

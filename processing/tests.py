@@ -205,8 +205,11 @@ class ProcessingFlowTests(TestCase):
         order = self.prepare_paid_order()
         self.assertIsNone(claim_job())
         with override_settings(PAYMENT_CHECKOUT_ENABLED=False):
+            settle_order(order, "TX-PAID", {"test": True, "duplicate_payment_of": "untrusted", "partial_refund_amount_idr": 9900})
             settle_order(order, "TX-PAID", {"test": True})
-            settle_order(order, "TX-PAID", {"test": True})
+        order.refresh_from_db()
+        self.assertNotIn("duplicate_payment_of", order.provider_payload)
+        self.assertEqual(order.provider_payload.get("partial_refund_amount_idr", 0), 0)
         order.job.refresh_from_db()
         self.assertEqual(order.job.state, "queued")
         self.assertFalse(Entitlement.objects.filter(order=order).exists())
@@ -241,6 +244,63 @@ class ProcessingFlowTests(TestCase):
         job.refresh_from_db()
         self.assertEqual(job.error_code, "generation_not_authorized")
         self.assertFalse(self.project.results.exists())
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_deleted_paid_undispatched_picture_retains_one_resolution(self):
+        from commerce.services import settle_order
+        from operations.models import SupportTicket
+        order = self.prepare_paid_order()
+        settle_order(order, "TX-PAID-DELETE")
+        delete_project(self.user, self.project.id)
+        order.refresh_from_db()
+        order.job.refresh_from_db()
+        self.assertEqual(order.job.state, "cancelled")
+        self.assertEqual(order.fulfillment_state, "delivery_failed")
+        self.assertEqual(order.refunds.count(), 1)
+        self.assertEqual(SupportTicket.objects.filter(order=order).count(), 1)
+        self.assertIsNone(claim_job())
+        settle_order(order, "TX-PAID-DELETE")
+        self.assertEqual(order.refunds.count(), 1)
+
+    def test_correction_inherits_root_expiry_and_media_is_physically_expired(self):
+        from operations.management.commands.maintenance import expire_assets
+        self.prepare()
+        creation, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "retention-root")
+        self.assertTrue(run_job(claim_job()))
+        creation.refresh_from_db()
+        root = creation.result
+        expiry = root.expires_at
+        self.project.refresh_from_db()
+        correction, _ = admit_job(self.user, self.project.id, "correction", self.project.revision, "retention-correction", parent_result_id=root.id, target_slot_id=self.slots[0].id, correction_action="enhance")
+        later = timezone.now() + timedelta(hours=1)
+        with patch("processing.worker.timezone.now", return_value=later):
+            self.assertTrue(run_job(claim_job()))
+        correction.refresh_from_db()
+        self.assertEqual(correction.result.expires_at, expiry)
+        assets = list(correction.result.media.all())
+        self.assertTrue(all(asset.expires_at == expiry for asset in assets))
+        expire_assets(expiry + timedelta(seconds=1))
+        correction.result.refresh_from_db()
+        self.assertEqual(correction.result.status, "expired")
+        for asset in assets:
+            asset.refresh_from_db()
+            self.assertIsNotNone(asset.deleted_at)
+            self.assertFalse(asset.file.storage.exists(asset.file.name))
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_partial_refund_before_settlement_holds_generation_for_resolution(self):
+        from commerce.services import apply_provider_status
+        from operations.models import SupportTicket
+        order = self.prepare_paid_order()
+        status = {"order_id": order.merchant_reference, "transaction_id": "TX-PARTIAL-GENERATION", "gross_amount": "9900.00", "currency": "IDR", "payment_type": "qris", "fraud_status": "accept", "transaction_status": "partial_refund", "status_code": "200", "refund_amount": "990.00"}
+        apply_provider_status(order, status)
+        order.refresh_from_db()
+        order.job.refresh_from_db()
+        self.assertEqual(order.payment_state, "paid")
+        self.assertEqual(order.job.state, "cancelled")
+        self.assertEqual(order.fulfillment_state, "delivery_failed")
+        self.assertEqual(SupportTicket.objects.filter(order=order).count(), 1)
+        self.assertIsNone(claim_job())
 
     @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
     def test_late_payment_after_deletion_opens_one_refund_without_dispatch(self):

@@ -340,6 +340,8 @@ def run_job(job):
                 raise WorkerFailure("project_deleted")
             _assert_inputs_eligible(locked)
             _assert_billing_authorized(locked)
+            if locked.parent_result_id:
+                expires_at = (locked.parent_result.generation_root or locked.parent_result).expires_at
             if locked.state not in (Job.State.PROCESSING, Job.State.UNCERTAIN):
                 raise WorkerFailure("stale_fencing_token")
             locked.state = Job.State.FINALIZING

@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from momenria.http import ApiError
@@ -17,12 +18,18 @@ from .services import emit_analytics, get_owned_project
 from .storage import store_bytes_atomically
 
 
+def root_access_revoked(root, owner):
+    from commerce.models import Entitlement, Refund
+    lineage = ResultVersion.objects.filter(project_id=root.project_id).filter(Q(pk=root.pk) | Q(generation_root_id=root.pk)).values("id")
+    return Entitlement.objects.filter(owner=owner, result_id_snapshot__in=lineage, revoked_at__isnull=False).exists() or Refund.objects.filter(order__owner=owner, order__result_id_snapshot__in=lineage, state=Refund.State.SUCCEEDED).exclude(order__provider_payload__has_key="duplicate_payment_of").exists()
+
+
 def authorized_root(result, owner):
     from commerce.models import Entitlement
     root = result.generation_root or result
     if result.project.owner_id != owner.id or result.project.state != Project.State.ACTIVE or result.status != ResultVersion.Status.READY or result.expires_at <= timezone.now() or root.status != ResultVersion.Status.READY or root.expires_at <= timezone.now():
         raise ApiError(404, "result_unavailable", "Hasil ini tidak tersedia.")
-    if not Entitlement.objects.filter(owner=owner, result_id_snapshot=root.id, revoked_at__isnull=True).exists():
+    if root_access_revoked(root, owner) or not Entitlement.objects.filter(owner=owner, result_id_snapshot=root.id, revoked_at__isnull=True).exists():
         raise ApiError(403, "download_not_authorized", "Akses hasil ini tidak tersedia. Hubungi Bantuan.")
     return root
 

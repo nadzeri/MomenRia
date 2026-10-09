@@ -8,12 +8,13 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from commerce.models import Entitlement, Order, Refund
+from commerce.models import Entitlement, Order
 from momenria.http import ApiError
 from operations.models import AuditEvent, SupportTicket
-from processing.models import Job
+from processing.models import Allowance, Job
 from processing.quota import initialize_trial_allowances
 from projects.models import MediaAsset, Project, ResultVersion
+from projects.result_services import root_access_revoked
 from projects.storage import store_bytes_atomically
 
 
@@ -39,7 +40,11 @@ class Command(BaseCommand):
         for owner in get_user_model().objects.order_by("id").iterator():
             try:
                 with transaction.atomic():
-                    initialize_trial_allowances(owner)
+                    get_user_model().objects.select_for_update().get(pk=owner.pk)
+                    before = Allowance.objects.filter(owner=owner, trial_slot__isnull=False).count()
+                    slots = initialize_trial_allowances(owner)
+                    if applying and not before:
+                        AuditEvent.objects.create(actor=actor, action="pricing.quota_reconciled", object_type="user", object_id=owner.id, reason=options["reason"][:500], metadata={"slots": len(slots), "consumed": sum(slot.consumed_at is not None for slot in slots)})
                     if not applying:
                         transaction.set_rollback(True)
                 self.stdout.write(f"owner={owner.id} quota=audited")
@@ -48,9 +53,7 @@ class Command(BaseCommand):
                 continue
             roots = ResultVersion.objects.filter(project__owner=owner, project__state=Project.State.ACTIVE, kind="creation", status="ready", synthetic=False, expires_at__gt=timezone.now()).exclude(job__generation_order__isnull=False)
             for root in roots:
-                revoked = Entitlement.objects.filter(owner=owner, result_id_snapshot=root.id, revoked_at__isnull=False).exists()
-                refunded = Refund.objects.filter(order__result_id_snapshot=root.id, state="succeeded").exists()
-                if revoked or refunded:
+                if root_access_revoked(root, owner):
                     self.stdout.write(f"result={root.id} access=revoked")
                     continue
                 for result in [root, *root.derivatives.filter(status="ready", expires_at__gt=timezone.now())]:
@@ -60,7 +63,8 @@ class Command(BaseCommand):
         with transaction.atomic():
             get_user_model().objects.select_for_update().get(pk=owner.pk)
             project = Project.objects.select_for_update().get(pk=result.project_id)
-            if project.state != Project.State.ACTIVE or result.expires_at <= timezone.now():
+            root = result.generation_root or result
+            if project.state != Project.State.ACTIVE or result.expires_at <= timezone.now() or root_access_revoked(root, owner):
                 return
             master = result.media.filter(kind="master", deleted_at__isnull=True, expires_at__gt=timezone.now()).first()
             try:
@@ -80,13 +84,14 @@ class Command(BaseCommand):
                 if applying:
                     ResultVersion.objects.filter(pk=result.pk).update(status="quarantined")
                     SupportTicket.objects.get_or_create(owner=owner, project=project, subject="File historis tidak tersedia", message=f"File asli hasil {result.id} perlu diperiksa. Tidak ada biaya baru.")
+                    AuditEvent.objects.create(actor=actor, action="pricing.history_quarantined", object_type="result", object_id=result.id, reason=reason[:500], metadata={"cause": "master_unavailable"})
                 return
             self.stdout.write(f"result={result.id} master=verified preview=clean")
             if not applying:
                 return
-            root = result.generation_root or result
             if root.id == result.id and not Entitlement.objects.filter(owner=owner, result_id_snapshot=root.id).exists():
                 Entitlement.objects.create(owner=owner, result=root, result_id_snapshot=root.id, grant_source="legacy")
+                AuditEvent.objects.create(actor=actor, action="pricing.history_reconciled", object_type="result", object_id=root.id, reason=reason[:500], metadata={"master_sha256": master.sha256, "grant_created": True})
             preview = result.media.filter(kind="preview").first()
             if preview and (preview.deleted_at or preview.expires_at <= timezone.now()):
                 return

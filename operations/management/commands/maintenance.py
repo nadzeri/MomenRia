@@ -33,7 +33,7 @@ def expire_assets(now):
         source.status = SourceAsset.Status.EXPIRED
         source.deleted_at = now
         source.save(update_fields=("status", "deleted_at"))
-    for result in ResultVersion.objects.filter(expires_at__lte=now, status=ResultVersion.Status.READY).iterator():
+    for result in ResultVersion.objects.filter(Q(expires_at__lte=now) | Q(generation_root__expires_at__lte=now), status__in=(ResultVersion.Status.READY, ResultVersion.Status.QUARANTINED)).iterator():
         for media in result.media.filter(deleted_at__isnull=True):
             remove_file(media.file)
             media.deleted_at = now

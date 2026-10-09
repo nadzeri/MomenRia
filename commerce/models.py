@@ -53,7 +53,7 @@ class Order(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=("owner", "result_id_snapshot"), condition=Q(payment_state__in=("creating", "pending", "uncertain", "paid")), name="commerce_one_active_order_per_result"),
+            models.UniqueConstraint(fields=("owner", "result_id_snapshot"), condition=Q(payment_state__in=("creating", "pending", "uncertain")), name="commerce_one_active_order_per_result"),
             models.CheckConstraint(condition=Q(currency="IDR", amount_idr__gt=0), name="commerce_order_positive_idr"),
             models.CheckConstraint(condition=Q(purpose="result_download", job__isnull=True) | Q(purpose="generation", job__isnull=False, policies_accepted_at__isnull=False, terms_version__isnull=False, refund_policy_version__isnull=False), name="commerce_generation_job_and_consent"),
             models.CheckConstraint(condition=~Q(fulfillment_state="downloadable") | Q(result_id_snapshot__isnull=False, result_sha256__isnull=False, result_width__isnull=False, result_height__isnull=False, result_width__gt=0, result_height__gt=0), name="commerce_download_has_result"),

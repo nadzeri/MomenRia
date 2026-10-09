@@ -43,6 +43,7 @@ class PricingMigrationTests(TransactionTestCase):
         for result, state in ((results[0], "paid"), (results[1], "pending")):
             orders.append(Order.objects.create(owner=owner, project=project, result=result, offer=offer, merchant_reference=f"MR-MIGRATE-{state}", amount_idr=19900, payment_state=state, result_id_snapshot=result.id, result_sha256="b" * 64, result_width=2048, result_height=1536, expires_at=timezone.now() + timedelta(minutes=15)))
         Entitlement.objects.create(owner=owner, order=orders[0], result=results[0], result_id_snapshot=results[0].id, revoked_at=timezone.now())
+        late = Order.objects.create(owner=owner, project=project, result=results[0], offer=offer, merchant_reference="MR-MIGRATE-EXPIRED-LATE", amount_idr=19900, payment_state="expired", result_id_snapshot=results[0].id, result_sha256="b" * 64, result_width=2048, result_height=1536, expires_at=timezone.now() + timedelta(minutes=15))
         Refund.objects.create(order=orders[0], amount_idr=19900, reason="Historical completed refund", idempotency_key="old-refund", state="succeeded", requested_by=owner)
         MigrationExecutor(connection).migrate(latest)
         from accounts.models import User as CurrentUser
@@ -52,6 +53,7 @@ class PricingMigrationTests(TransactionTestCase):
         from .models import Entitlement as CurrentEntitlement, Order as CurrentOrder, Refund as CurrentRefund
         self.assertEqual(CurrentOrder.objects.get(pk=orders[0].id).amount_idr, 19900)
         self.assertEqual(CurrentOrder.objects.get(pk=orders[1].id).payment_state, "pending")
+        self.assertEqual(CurrentOrder.objects.get(pk=late.id).payment_state, "expired")
         self.assertEqual(CurrentRefund.objects.get(idempotency_key="old-refund").state, "succeeded")
         self.assertIsNotNone(CurrentEntitlement.objects.get(order_id=orders[0].id).revoked_at)
         self.assertFalse(CurrentOffer.objects.get(pk=offer.id).active)
