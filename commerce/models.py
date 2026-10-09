@@ -113,6 +113,6 @@ class Refund(models.Model):
     request_hash = models.CharField(max_length=64, blank=True)
     provider_reference = models.CharField(max_length=180, blank=True, unique=True, null=True)
     state = models.CharField(max_length=16, choices=State.choices, default=State.REQUESTED)
-    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="requested_refunds")
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="requested_refunds")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -28,6 +28,20 @@ class GenerationOrderModelTests(TestCase):
         with self.assertRaises(IntegrityError), transaction.atomic():
             Order.objects.create(owner=owner, offer=offer, merchant_reference="MR-NO-DIMENSIONS", amount_idr=9900, result_id_snapshot=uuid4(), result_sha256="a" * 64, fulfillment_state="downloadable", expires_at=timezone.now())
 
+    @override_settings(PAYMENT_ENV="sandbox")
+    def test_qr_instruction_url_requires_exact_environment_origin(self):
+        from .services import validated_qr_url
+        good = "https://api.sandbox.midtrans.com/v2/qris/test/qr-code"
+        self.assertEqual(validated_qr_url(good), good)
+        for url in ("http://api.sandbox.midtrans.com/v2/qris/test/qr-code", "https://api.midtrans.com/v2/qris/test/qr-code", "https://api.sandbox.midtrans.com.evil.example/v2/qris/test/qr-code", "https://user@api.sandbox.midtrans.com/v2/qris/test/qr-code", "https://api.sandbox.midtrans.com/v2/qris/test/qr-code?url=evil", "javascript:alert(1)", None):
+            self.assertIsNone(validated_qr_url(url))
+
+    @override_settings(PAYMENT_SERVER_KEY="", PAYMENT_PROVIDER="midtrans")
+    def test_missing_server_key_cannot_verify_a_forged_signature(self):
+        payload = {"order_id": "MR-UNCONFIGURED", "status_code": "200", "gross_amount": "9900", "transaction_id": "TX-UNCONFIGURED"}
+        payload["signature_key"] = hashlib.sha512(b"MR-UNCONFIGURED2009900").hexdigest()
+        self.assertFalse(midtrans_signature_valid(payload))
+
 
 class MidtransSignatureTests(TestCase):
     def make_order(self, reference, state=Order.PaymentState.PENDING):
@@ -76,7 +90,63 @@ class MidtransSignatureTests(TestCase):
                 apply_midtrans_notification(payload)
         order.refresh_from_db()
         self.assertEqual(order.payment_state, Order.PaymentState.PENDING)
-        self.assertFalse(PaymentEvent.objects.get(provider_event_id="TX-ATOMIC").verified)
+        self.assertFalse(PaymentEvent.objects.get(order_reference=order.merchant_reference).verified)
+
+    @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_SERVER_KEY="server-key")
+    @patch("commerce.services._midtrans_status")
+    def test_pending_then_settled_notifications_share_transaction_without_conflict(self, status):
+        _, order = self.make_order("MR-TRANSITIONS")
+        settled_payload, settled_status = self.notification(order, "TX-TRANSITIONS")
+        pending_payload = {**settled_payload, "status_code": "201", "transaction_status": "pending"}
+        pending_payload["signature_key"] = hashlib.sha512((order.merchant_reference + "201" + "19900.00" + "server-key").encode()).hexdigest()
+        status.return_value = {**settled_status, "status_code": "201", "transaction_status": "pending"}
+        self.assertEqual(apply_midtrans_notification(pending_payload).payment_state, "pending")
+        self.assertFalse(Entitlement.objects.filter(order=order).exists())
+        status.return_value = settled_status
+        self.assertEqual(apply_midtrans_notification(settled_payload).payment_state, "paid")
+        apply_midtrans_notification(settled_payload)
+        self.assertEqual(PaymentEvent.objects.filter(order_reference=order.merchant_reference).count(), 2)
+        self.assertEqual(Entitlement.objects.filter(order=order).count(), 1)
+        status.return_value = {**settled_status, "status_code": "201", "transaction_status": "pending"}
+        self.assertEqual(refresh_order(order).payment_state, "paid")
+
+    @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_SERVER_KEY="server-key")
+    @patch("commerce.services._midtrans_status")
+    def test_verified_refund_revokes_access_and_settlement_replay_cannot_restore_it(self, status):
+        _, order = self.make_order("MR-REFUND-STATE")
+        payload, status.return_value = self.notification(order, "TX-REFUND-STATE")
+        apply_midtrans_notification(payload)
+        status.return_value = {**status.return_value, "transaction_status": "refund", "refund_amount": "19900.00"}
+        refreshed = refresh_order(order)
+        self.assertEqual(refreshed.fulfillment_state, "ended")
+        self.assertIsNotNone(Entitlement.objects.get(order=order).revoked_at)
+
+        self.assertEqual(order.refunds.get().state, "succeeded")
+        status.return_value = {**status.return_value, "transaction_status": "settlement"}
+        apply_midtrans_notification(payload)
+        self.assertIsNotNone(Entitlement.objects.get(order=order).revoked_at)
+
+    @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_SERVER_KEY="server-key")
+    def test_signed_malformed_amount_is_rejected_without_server_error(self):
+        _, order = self.make_order("MR-MALFORMED-AMOUNT")
+        payload, _ = self.notification(order, "TX-MALFORMED")
+        payload["gross_amount"] = "invalid"
+        payload["signature_key"] = hashlib.sha512((order.merchant_reference + "200invalidserver-key").encode()).hexdigest()
+        with self.assertRaises(ApiError) as error:
+            apply_midtrans_notification(payload)
+        self.assertEqual(error.exception.status, 400)
+
+    @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_SERVER_KEY="server-key")
+    @patch("commerce.services._midtrans_status")
+    def test_malformed_refund_amount_does_not_revoke_access(self, status):
+        _, order = self.make_order("MR-MALFORMED-REFUND")
+        payload, status.return_value = self.notification(order, "TX-MALFORMED-REFUND")
+        apply_midtrans_notification(payload)
+        status.return_value = {**status.return_value, "transaction_status": "refund", "refund_amount": None}
+        with self.assertRaises(ApiError) as error:
+            refresh_order(order)
+        self.assertEqual(error.exception.status, 400)
+        self.assertIsNone(Entitlement.objects.get(order=order).revoked_at)
 
     @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_SERVER_KEY="server-key")
     @patch("commerce.services._midtrans_status")
@@ -119,7 +189,7 @@ class MidtransSignatureTests(TestCase):
         self.assertEqual(settled.payment_state, Order.PaymentState.PAID)
         self.assertEqual(settled.fulfillment_state, Order.FulfillmentState.UNAVAILABLE)
         self.assertFalse(Entitlement.objects.filter(order=order).exists())
-        self.assertTrue(PaymentEvent.objects.get(provider_event_id="TX-LATE-DELETED").verified)
+        self.assertTrue(PaymentEvent.objects.get(order_reference=order.merchant_reference).verified)
         self.assertTrue(SupportTicket.objects.filter(order=order).exists())
 
     @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_SERVER_KEY="server-key")

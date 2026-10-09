@@ -1,16 +1,20 @@
 from django.conf import settings
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from momenria.http import ApiError, api_view, body_json, operator_api_view, public_api_view, uuid_value
 from operations.rate_limit import check_rate_limit
 
-from .services import apply_midtrans_notification, create_generation_order, create_order, get_owned_order, refresh_order, request_refund, settle_order
+from .services import apply_midtrans_notification, create_generation_order, create_order, get_owned_order, refresh_order, request_refund, settle_order, validated_qr_url
 
 
 def order_json(order):
     downloadable = order.fulfillment_state == order.FulfillmentState.DOWNLOADABLE and order.entitlement.revoked_at is None if hasattr(order, "entitlement") else False
     instructions = {key: order.provider_payload[key] for key in ("kind", "message") if key in order.provider_payload}
+    qr_url = validated_qr_url(order.provider_payload.get("qr_url"))
+    if qr_url and order.payment_state in (order.PaymentState.CREATING, order.PaymentState.PENDING, order.PaymentState.UNCERTAIN) and order.expires_at > timezone.now():
+        instructions["qr_url"] = qr_url
     return {
         "id": str(order.id), "merchant_reference": order.merchant_reference,
         "result_id": str(order.result_id_snapshot) if order.result_id_snapshot else None,

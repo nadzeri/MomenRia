@@ -6,11 +6,14 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from urllib.parse import quote, urlparse
+from http.client import HTTPException
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from momenria.http import ApiError
 from operations.models import AuditEvent, OutboxEvent, SupportTicket
@@ -49,6 +52,8 @@ def create_generation_order(owner, project_id, data, idempotency_key):
             return Order.objects.select_related("job").get(id=record.response["order_id"]), False
         if not settings.PAYMENT_CHECKOUT_ENABLED or settings.PAYMENT_PROVIDER == "disabled":
             raise ApiError(503, "payment_unavailable", "Pembelian foto baru sedang dijeda. Pesanan lama tetap bisa diperiksa.")
+        if settings.PAYMENT_PROVIDER == "midtrans" and (not settings.PAYMENT_SERVER_KEY or settings.PAYMENT_QRIS_ACQUIRER not in {"gopay", "airpay shopee"}):
+            raise ApiError(503, "payment_unavailable", "QRIS belum diaktifkan untuk layanan ini.")
         if settings.AI_GATEWAY_MODE == "fake" and not (settings.APP_ENV == "test" and settings.PAYMENT_PROVIDER == "fake"):
             raise ApiError(409, "synthetic_payment_forbidden", "Hasil simulasi tidak dapat dikenakan pembayaran nyata.")
         if data["terms_version"] != settings.TERMS_VERSION or data["refund_policy_version"] != settings.REFUND_POLICY_VERSION:
@@ -63,76 +68,59 @@ def create_generation_order(owner, project_id, data, idempotency_key):
         if settings.PAYMENT_PROVIDER == "fake" and settings.APP_ENV == "test":
             order.payment_state = Order.PaymentState.PENDING
             order.provider_payload = {"kind": "fake_qris", "message": "Pembayaran simulasi, tidak ada uang yang ditagih."}
-        else:
-            order.payment_state = Order.PaymentState.UNCERTAIN
         order.save(update_fields=("payment_state", "provider_payload", "updated_at"))
         emit_analytics("checkout_started", owner=owner, project=job.project, job=job, order=order)
+    if settings.PAYMENT_PROVIDER == "midtrans":
+        order = start_qris_charge(order)
     return order, True
 
 
 def create_order(owner, result_id, offer_id, idempotency_key):
-    if not idempotency_key:
+    if not idempotency_key or len(idempotency_key) > 180:
         raise ApiError(400, "idempotency_key_required", "Header Idempotency-Key wajib diisi.")
     request_hash = canonical_hash({"result_id": str(result_id), "offer_id": str(offer_id)})
-    with transaction.atomic():
-        record = IdempotencyRecord.objects.filter(owner=owner, operation="order:create", key=idempotency_key).first()
-        if record:
-            if record.request_hash != request_hash:
-                raise ApiError(409, "idempotency_conflict", "Kunci idempotensi sudah dipakai untuk pesanan berbeda.")
-            return Order.objects.get(id=record.response["order_id"]), False
-        try:
-            result = ResultVersion.objects.select_for_update().select_related("project", "project__offer").get(
-                id=result_id, project__owner=owner,
-            )
-        except ResultVersion.DoesNotExist as error:
-            raise ApiError(404, "not_found", "Hasilnya nggak ketemu. Coba buka lagi dari Foto saya.") from error
-        if result.project.state != Project.State.ACTIVE or result.status != ResultVersion.Status.READY or result.expires_at <= timezone.now() + timedelta(minutes=30):
-            raise ApiError(409, "result_unavailable", "Masa simpan hasilnya hampir atau sudah habis, jadi pembayarannya belum bisa dilanjutkan. Hubungi Bantuan, ya.")
-        if str(result.project.offer_id) != str(offer_id):
-            raise ApiError(409, "offer_mismatch", "Paketnya nggak cocok dengan proyek ini. Cek lagi pesananmu, ya.")
-        if result.synthetic:
-            raise ApiError(409, "synthetic_result", "Ini hasil simulasi, jadi nggak bisa dibeli, ya.")
-        if settings.PAYMENT_PROVIDER == "disabled":
-            raise ApiError(503, "payment_unavailable", "Pembayaran belum tersedia. Kamu masih bisa download preview gratis.")
-        if settings.PAYMENT_PROVIDER not in {"fake", "midtrans"}:
-            raise ApiError(503, "payment_unavailable", "Layanan pembayaran ini belum bisa dipakai. Hubungi Bantuan, ya.")
-        try:
-            master = result.media.get(kind=MediaAsset.Kind.MASTER, deleted_at__isnull=True)
-        except MediaAsset.DoesNotExist as error:
-            raise ApiError(409, "master_unavailable", "File resolusi tingginya belum tersedia. Hubungi Bantuan, ya.") from error
-        existing = Order.objects.filter(owner=owner, result_id_snapshot=result.id, payment_state__in=(Order.PaymentState.CREATING, Order.PaymentState.PENDING, Order.PaymentState.UNCERTAIN, Order.PaymentState.PAID)).first()
-        if existing:
-            return existing, False
-        now = timezone.now()
-        order = Order.objects.create(
-            owner=owner, project=result.project, result=result, offer=result.project.offer,
-            merchant_reference=f"MR-{uuid.uuid4().hex[:20].upper()}", payment_state=Order.PaymentState.CREATING,
-            amount_idr=result.project.offer.price_idr, result_id_snapshot=result.id, result_sha256=master.sha256,
-            result_width=master.width, result_height=master.height, expires_at=min(now + timedelta(minutes=15), result.expires_at),
-        )
-        if settings.PAYMENT_PROVIDER == "fake" and settings.APP_ENV == "test":
-            order.payment_state = Order.PaymentState.PENDING
-            order.provider_payload = {"kind": "fake_qris", "message": "Ini pembayaran simulasi. Nggak ada uang yang ditagih."}
-            order.save(update_fields=("payment_state", "provider_payload", "updated_at"))
-        else:
-            order.payment_state = Order.PaymentState.UNCERTAIN
-            order.provider_payload = {"reason": "merchant_onboarding_required"}
-            order.save(update_fields=("payment_state", "provider_payload", "updated_at"))
-        response = {"order_id": str(order.id), "status_url": f"/api/v1/orders/{order.id}"}
-        IdempotencyRecord.objects.create(owner=owner, operation="order:create", key=idempotency_key, request_hash=request_hash, status_code=201, response=response)
-        emit_analytics("checkout_started", owner=owner, project=result.project, result=result, order=order)
-        return order, True
+    record = IdempotencyRecord.objects.filter(owner=owner, operation="order:create", key=idempotency_key).first()
+    if record:
+        if record.request_hash != request_hash:
+            raise ApiError(409, "idempotency_conflict", "Kunci sudah dipakai untuk pesanan berbeda.")
+        return Order.objects.get(pk=record.response["order_id"], owner=owner), False
+    if not ResultVersion.objects.filter(pk=result_id, project__owner=owner).exists():
+        raise ApiError(404, "not_found", "Hasilnya tidak ditemukan.")
+    raise ApiError(410, "download_purchase_retired", "Download tidak dikenakan biaya lagi. Pembelian berlaku untuk membuat foto baru.")
 
 
 def settle_order(order, provider_transaction_id, payload=None, payment_event=None):
     with transaction.atomic():
-        order = Order.objects.select_for_update(of=("self",)).select_related("project", "result").get(id=order.id)
+        order = lock_order(order)
         if order.payment_state == Order.PaymentState.PAID:
             if provider_transaction_id and order.provider_transaction_id and provider_transaction_id != order.provider_transaction_id:
                 OutboxEvent.objects.get_or_create(topic="payment.possible_duplicate", payload={"order_id": str(order.id), "transaction_id": provider_transaction_id})
                 SupportTicket.objects.get_or_create(owner=order.owner, order=order, subject="Kemungkinan pembayaran ganda", defaults={"project": order.project, "message": "Kami menemukan pembayaran kedua untuk pesanan yang sudah lunas. Tim bantuan perlu mengeceknya.", "status": SupportTicket.Status.REFUND_PROGRESS})
             if payment_event:
                 PaymentEvent.objects.filter(id=payment_event.id).update(verified=True)
+            return order
+        if order.purpose == Order.Purpose.GENERATION:
+            order.payment_state = Order.PaymentState.PAID
+            order.provider_transaction_id = provider_transaction_id
+            order.provider_payload = {**order.provider_payload, **(payload or {})}
+            order.paid_at = timezone.now()
+            order.save()
+            if payment_event:
+                PaymentEvent.objects.filter(id=payment_event.id).update(verified=True)
+            job = order.job
+            from processing.worker import WorkerFailure, _assert_inputs_eligible
+            try:
+                if job.state != Job.State.AWAITING_PAYMENT or job.budget_reservation.state != "reserved" or job.deletion_epoch != job.project.deletion_epoch:
+                    raise WorkerFailure("generation_no_longer_available")
+                _assert_inputs_eligible(job)
+            except WorkerFailure as error:
+                resolve_generation_failure(order, f"Pembuatan tidak dapat dilanjutkan: {error.code}")
+                return Order.objects.get(pk=order.pk)
+            job.state = Job.State.QUEUED
+            job.next_run_at = timezone.now()
+            job.save(update_fields=("state", "next_run_at", "updated_at"))
+            OutboxEvent.objects.create(topic="job.queued", payload={"job_id": str(job.id), "order_id": str(order.id)})
+            emit_analytics("payment_verified", owner=order.owner, project=order.project, job=job, order=order)
             return order
         if not order.result or not order.project or order.project.state != Project.State.ACTIVE or order.result.status != ResultVersion.Status.READY or order.result.expires_at <= timezone.now():
             order.payment_state = Order.PaymentState.PAID
@@ -160,38 +148,119 @@ def settle_order(order, provider_transaction_id, payload=None, payment_event=Non
         return order
 
 
+def lock_order(order):
+    get_user_model().objects.select_for_update().get(pk=order.owner_id)
+    if order.project_id:
+        Project.objects.select_for_update().get(pk=order.project_id)
+    if order.job_id:
+        Job.objects.select_for_update().get(pk=order.job_id)
+    return Order.objects.select_for_update(of=("self",)).select_related("project", "result", "job").get(pk=order.pk)
+
+
+def resolve_generation_failure(order, reason):
+    with transaction.atomic():
+        order = lock_order(order)
+        if order.payment_state != Order.PaymentState.PAID or order.refunds.filter(state=Refund.State.SUCCEEDED).exists():
+            return
+        order.fulfillment_state = Order.FulfillmentState.DELIVERY_FAILED
+        order.save(update_fields=("fulfillment_state", "updated_at"))
+        if order.job.state == Job.State.AWAITING_PAYMENT:
+            order.job.state = Job.State.CANCELLED
+            order.job.error_code = "paid_generation_unavailable"
+            order.job.save(update_fields=("state", "error_code", "updated_at"))
+            order.job.budget_reservation.state = "released"
+            order.job.budget_reservation.save(update_fields=("state",))
+        if not order.refunds.exclude(state=Refund.State.FAILED).exists():
+            request_refund(None, order.id, reason, f"generation-failure-{order.id}")
+        SupportTicket.objects.get_or_create(owner=order.owner, order=order, subject="Pembuatan foto perlu pengembalian dana", defaults={"project": order.project, "message": reason, "status": SupportTicket.Status.REFUND_PROGRESS})
+
+
 def midtrans_signature_valid(payload):
     required = ("order_id", "status_code", "gross_amount", "signature_key", "transaction_id")
-    if any(not isinstance(payload.get(key), str) for key in required):
+    if not settings.PAYMENT_SERVER_KEY or any(not isinstance(payload.get(key), str) for key in required):
         return False
     expected = hashlib.sha512((payload["order_id"] + payload["status_code"] + payload["gross_amount"] + settings.PAYMENT_SERVER_KEY).encode()).hexdigest()
     return hmac.compare_digest(expected, payload["signature_key"])
 
 
 def _midtrans_status(reference):
+    return _midtrans_request("GET", f"/v2/{quote(reference, safe='')}/status")
+
+
+def _midtrans_request(method, path, payload=None):
     if not settings.PAYMENT_SERVER_KEY:
         raise ApiError(503, "payment_unavailable", "Pembayaran belum siap. Coba lagi nanti atau hubungi Bantuan, ya.")
     host = "api.midtrans.com" if settings.PAYMENT_ENV == "production" else "api.sandbox.midtrans.com"
     import base64
     auth = base64.b64encode((settings.PAYMENT_SERVER_KEY + ":").encode()).decode()
-    request = Request(f"https://{host}/v2/{reference}/status", headers={"Authorization": f"Basic {auth}", "Accept": "application/json"})
+    request = Request(f"https://{host}{path}", method=method, data=json.dumps(payload).encode() if payload is not None else None, headers={"Authorization": f"Basic {auth}", "Accept": "application/json", "Content-Type": "application/json"})
     try:
         with urlopen(request, timeout=10) as response:
-            return json.load(response)
-    except (HTTPError, URLError, TimeoutError, ValueError) as error:
+            data = json.loads(response.read(128 * 1024))
+            if not isinstance(data, dict):
+                raise ValueError("Invalid payment response")
+            return data
+    except HTTPError as error:
+        if method == "GET" and error.code == 404:
+            return {"status_code": "404"}
+        raise ApiError(503, "payment_status_unavailable", "Status pembayaran belum pasti. Jangan bayar ulang dulu.") from error
+    except (URLError, OSError, HTTPException, ValueError) as error:
         raise ApiError(503, "payment_status_unavailable", "Kami belum bisa memastikan status pembayaranmu. Jangan bayar ulang dulu, ya. Cek status atau hubungi Bantuan.") from error
 
 
-def _validate_settlement(order, status, expected_transaction_id=None):
+def validated_qr_url(value):
+    if not isinstance(value, str):
+        return None
+    parsed = urlparse(value)
+    host = "api.midtrans.com" if settings.PAYMENT_ENV == "production" else "api.sandbox.midtrans.com"
+    if parsed.scheme == "https" and parsed.netloc == host and parsed.path.startswith(("/v2/qris/", "/v4/qris/")) and parsed.path.endswith("/qr-code") and not parsed.query and not parsed.fragment:
+        return value
+    return None
+
+
+def start_qris_charge(order, *, retry=False):
+    with transaction.atomic():
+        order = lock_order(order)
+        if order.payment_state not in (Order.PaymentState.CREATING, Order.PaymentState.UNCERTAIN) or order.expires_at <= timezone.now():
+            return order
+        charge_started_at = parse_datetime(order.provider_payload.get("charge_started_at", ""))
+        if charge_started_at and (not retry or order.payment_state == Order.PaymentState.CREATING and charge_started_at > timezone.now() - timedelta(seconds=30)):
+            return order
+        order.payment_state = Order.PaymentState.CREATING
+        order.provider_payload["charge_started_at"] = timezone.now().isoformat()
+        order.save(update_fields=("payment_state", "provider_payload", "updated_at"))
+    payload = {"payment_type": "qris", "transaction_details": {"order_id": order.merchant_reference, "gross_amount": order.amount_idr}, "item_details": [{"id": str(order.offer_id), "name": "Pembuatan satu foto MomenRia", "quantity": 1, "price": order.amount_idr}], "qris": {"acquirer": settings.PAYMENT_QRIS_ACQUIRER}, "custom_expiry": {"order_time": timezone.localtime(order.created_at).strftime("%Y-%m-%d %H:%M:%S %z"), "expiry_duration": 15, "unit": "minute"}}
     try:
-        amount_matches = Decimal(status["gross_amount"]) == Decimal(order.amount_idr)
-    except (KeyError, InvalidOperation, TypeError, ValueError) as error:
-        raise ApiError(400, "payment_mismatch", "Nilai pembayaran tidak cocok.") from error
+        status = _midtrans_request("POST", "/v2/charge", payload)
+        _validate_settlement(order, status)
+        actions = status.get("actions", [])
+        urls = [validated_qr_url(action.get("url")) for action in actions if isinstance(action, dict) and action.get("name") in {"generate-qr-code", "generate-qr-code-v2"} and action.get("method") == "GET"] if isinstance(actions, list) else []
+        qr_url = next((url for url in urls if url), None)
+        if status.get("transaction_status") == "pending" and not qr_url:
+            raise ApiError(503, "qr_unavailable", "Instruksi QRIS belum tersedia. Cek pesanan yang sama.")
+        if qr_url:
+            status.update(kind="qris", qr_url=qr_url)
+        return apply_provider_status(order, status)
+    except ApiError as error:
+        Order.objects.filter(pk=order.pk, payment_state=Order.PaymentState.CREATING).update(payment_state=Order.PaymentState.UNCERTAIN, provider_payload={**order.provider_payload, "message": "Status pembayaran belum pasti. Cek pesanan ini sebelum membayar lagi.", "charge_error": error.code}, updated_at=timezone.now())
+        return Order.objects.get(pk=order.pk)
+
+
+def amount_matches(value, expected):
+    try:
+        amount = Decimal(value)
+        return amount.is_finite() and amount == Decimal(expected)
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+
+
+def _validate_settlement(order, status, expected_transaction_id=None):
+    amount_valid = amount_matches(status.get("gross_amount"), order.amount_idr)
     identity_matches = status.get("order_id") == order.merchant_reference
     transaction_id = status.get("transaction_id")
-    transaction_matches = isinstance(transaction_id, str) and bool(transaction_id) and (not expected_transaction_id or transaction_id == expected_transaction_id)
+    transaction_matches = isinstance(transaction_id, str) and 0 < len(transaction_id) <= 180 and (not expected_transaction_id or transaction_id == expected_transaction_id)
     qris_matches = status.get("payment_type") == "qris"
-    if not all((amount_matches, identity_matches, transaction_matches, qris_matches, status.get("currency") == "IDR")):
+    if not all((amount_valid, identity_matches, transaction_matches, qris_matches, status.get("currency") == "IDR")):
         raise ApiError(400, "payment_mismatch", "Identitas atau nilai pembayaran tidak cocok.")
     return status.get("transaction_status") == "settlement" and status.get("status_code") == "200" and status.get("fraud_status") == "accept"
 
@@ -200,38 +269,92 @@ def apply_midtrans_notification(payload):
     if settings.PAYMENT_PROVIDER != "midtrans" or not midtrans_signature_valid(payload):
         raise ApiError(400, "invalid_notification", "Notifikasi pembayaran tidak valid.")
     payload_hash = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-    event_id = payload.get("transaction_id") or payload_hash
+    legacy = PaymentEvent.objects.filter(provider="midtrans", provider_event_id=payload["transaction_id"], payload_hash=payload_hash).first()
     with transaction.atomic():
-        event, created = PaymentEvent.objects.get_or_create(
-            provider="midtrans", provider_event_id=event_id,
-            defaults={"order_reference": payload.get("order_id", ""), "payload_hash": payload_hash, "payload": payload},
+        event, created = (legacy, False) if legacy else PaymentEvent.objects.get_or_create(
+            provider="midtrans", provider_event_id=payload_hash,
+            defaults={"order_reference": payload["order_id"], "payload_hash": payload_hash, "payload": payload},
         )
-    if not created and event.payload_hash != payload_hash:
-        raise ApiError(409, "notification_conflict", "Identitas notifikasi dipakai untuk isi berbeda.")
     try:
         order = Order.objects.get(merchant_reference=event.order_reference)
     except Order.DoesNotExist as error:
         raise ApiError(404, "order_unknown", "Pesanan tidak dikenal.") from error
     if not created and event.verified and order.payment_state == Order.PaymentState.PAID:
         return order
-    status = _midtrans_status(order.merchant_reference)
-    if not _validate_settlement(order, status, payload.get("transaction_id")):
-        raise ApiError(409, "payment_not_settled", "Pembayaranmu belum terkonfirmasi. Cek statusnya dulu sebelum bayar lagi, ya.")
-    return settle_order(order, status.get("transaction_id", event_id), status, payment_event=event)
+    if not amount_matches(payload["gross_amount"], order.amount_idr):
+        raise ApiError(400, "payment_mismatch", "Nilai pembayaran tidak cocok.")
+    return apply_provider_status(order, _midtrans_status(order.merchant_reference), expected_transaction_id=payload["transaction_id"], payment_event=event)
+
+
+def apply_provider_status(order, status, *, expected_transaction_id=None, payment_event=None):
+    settled = _validate_settlement(order, status, expected_transaction_id)
+    if settled:
+        return settle_order(order, status["transaction_id"], status, payment_event=payment_event)
+    state = status.get("transaction_status")
+    if state not in {"pending", "deny", "cancel", "expire", "refund", "partial_refund"}:
+        raise ApiError(409, "payment_not_settled", "Status pembayaran belum dapat dikonfirmasi. Jangan bayar ulang dulu.")
+    with transaction.atomic():
+        order = lock_order(order)
+        order.provider_payload = {**order.provider_payload, **status}
+        if state == "refund":
+            if "refund_amount" in status and not amount_matches(status["refund_amount"], order.amount_idr):
+                raise ApiError(400, "refund_mismatch", "Jumlah refund tidak cocok.")
+            order.payment_state = Order.PaymentState.PAID
+            order.provider_transaction_id = order.provider_transaction_id or status["transaction_id"]
+            order.paid_at = order.paid_at or timezone.now()
+            order.fulfillment_state = Order.FulfillmentState.ENDED
+            order.save()
+            refund, _ = request_refund(None, order.id, "Pengembalian dana penuh dikonfirmasi oleh Midtrans", f"provider-refund-{order.id}")
+            refund.state = Refund.State.SUCCEEDED
+            refund.provider_reference = refund.provider_reference or f"MIDTRANS-{status['transaction_id']}"
+            refund.save(update_fields=("state", "provider_reference", "updated_at"))
+            Entitlement.objects.filter(result_id_snapshot=order.result_id_snapshot, owner=order.owner, revoked_at__isnull=True).update(revoked_at=timezone.now())
+            if order.job_id:
+                cancel_prepared_job(order.job, "order_refunded")
+            AuditEvent.objects.get_or_create(action="refund_verified", object_type="refund", object_id=refund.id, defaults={"reason": "Authenticated Midtrans status confirms full refund", "metadata": {"amount_idr": order.amount_idr}})
+        elif order.payment_state != Order.PaymentState.PAID and state != "partial_refund":
+            order.payment_state = {"pending": Order.PaymentState.PENDING, "deny": Order.PaymentState.FAILED, "cancel": Order.PaymentState.CANCELLED, "expire": Order.PaymentState.EXPIRED}[state]
+            order.provider_transaction_id = status["transaction_id"]
+            order.save()
+            if state != "pending" and order.job_id:
+                cancel_prepared_job(order.job, f"payment_{state}")
+            elif order.job_id and order.expires_at <= timezone.now():
+                cancel_prepared_job(order.job, "payment_quote_expired")
+        else:
+            order.save(update_fields=("provider_payload", "updated_at"))
+        if payment_event:
+            PaymentEvent.objects.filter(pk=payment_event.pk).update(verified=True)
+        return order
+
+
+def cancel_prepared_job(job, reason):
+    if job.state in (Job.State.AWAITING_PAYMENT, Job.State.QUEUED):
+        job.budget_reservation.state = "released"
+        job.budget_reservation.save(update_fields=("state",))
+    if job.state in Job.ACTIVE_STATES:
+        job.state = Job.State.CANCELLED
+        job.error_code = reason
+        job.save(update_fields=("state", "error_code", "updated_at"))
 
 
 def refresh_order(order):
+    if settings.APP_ENV == "test" and settings.PAYMENT_PROVIDER == "fake":
+        return order
     if settings.PAYMENT_PROVIDER != "midtrans":
-        raise ApiError(503, "payment_unavailable", "Status pembayaran belum bisa dicek ulang. Hubungi Bantuan sebelum bayar lagi, ya.")
+        raise ApiError(503, "payment_unavailable", "Status pembayaran belum bisa dicek ulang. Hubungi Bantuan sebelum bayar lagi.")
     status = _midtrans_status(order.merchant_reference)
-    if _validate_settlement(order, status):
-        return settle_order(order, status.get("transaction_id", ""), status)
-    terminal = {"deny": Order.PaymentState.FAILED, "cancel": Order.PaymentState.CANCELLED, "expire": Order.PaymentState.EXPIRED}
-    next_state = terminal.get(status.get("transaction_status"))
-    if next_state:
-        Order.objects.filter(id=order.id).exclude(payment_state=Order.PaymentState.PAID).update(payment_state=next_state, provider_payload=status)
-        order.refresh_from_db()
-    return order
+    if status.get("status_code") == "404" and not order.provider_transaction_id and order.payment_state in (Order.PaymentState.CREATING, Order.PaymentState.UNCERTAIN):
+        if order.expires_at > timezone.now():
+            return start_qris_charge(order, retry=True)
+        with transaction.atomic():
+            order = lock_order(order)
+            if order.payment_state != Order.PaymentState.PAID:
+                order.payment_state = Order.PaymentState.EXPIRED
+                order.save(update_fields=("payment_state", "updated_at"))
+                if order.job_id:
+                    cancel_prepared_job(order.job, "payment_not_created")
+        return order
+    return apply_provider_status(order, status)
 
 
 def request_refund(operator, order_id, reason, idempotency_key):
@@ -250,9 +373,13 @@ def request_refund(operator, order_id, reason, idempotency_key):
                 raise ApiError(409, "idempotency_conflict", "Kunci idempotensi sudah dipakai untuk permintaan berbeda.")
             return existing, False
         try:
-            order = Order.objects.select_for_update().get(id=order_id, payment_state=Order.PaymentState.PAID)
+            order = Order.objects.get(id=order_id, payment_state=Order.PaymentState.PAID)
         except (Order.DoesNotExist, ValueError) as error:
             raise ApiError(404, "not_found", "Pesanan yang sudah dibayar nggak ketemu. Cek lagi di halaman Pesanan, ya.") from error
+        order = lock_order(order)
+        existing = order.refunds.exclude(state=Refund.State.FAILED).first()
+        if existing:
+            return existing, False
         refund = Refund.objects.create(order=order, amount_idr=order.amount_idr, reason=reason, idempotency_key=idempotency_key, request_hash=request_hash, requested_by=operator)
         AuditEvent.objects.create(actor=operator, action="refund_requested", object_type="order", object_id=order.id, reason=reason, metadata={"refund_id": str(refund.id), "amount_idr": order.amount_idr})
         OutboxEvent.objects.create(topic="refund.requested", payload={"refund_id": str(refund.id), "order_id": str(order.id)})

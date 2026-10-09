@@ -284,3 +284,8 @@ def release_failed_job(job, code):
             job.budget_reservation.state = BudgetReservation.State.RECONCILED if costs is not None or completed else BudgetReservation.State.RELEASED
             job.budget_reservation.actual = costs
             job.budget_reservation.save(update_fields=("state", "actual"))
+        from commerce.models import Order
+        from commerce.services import resolve_generation_failure
+        order = Order.objects.filter(job=job, payment_state=Order.PaymentState.PAID).first()
+        if order:
+            resolve_generation_failure(order, f"Pembuatan foto dipastikan gagal: {code}")

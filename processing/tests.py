@@ -166,6 +166,135 @@ class ProcessingFlowTests(TestCase):
         self.assertFalse(self.project.jobs.exists())
         self.assertFalse(self.project.orders.exists())
 
+    def prepare_paid_order(self):
+        from commerce.services import create_generation_order
+        from .models import Allowance
+        from .quota import initialize_trial_allowances
+        self.prepare()
+        initialize_trial_allowances(self.user)
+        Allowance.objects.filter(owner=self.user, trial_slot__isnull=False).update(consumed_at=timezone.now())
+        offer = Offer.objects.get(purchase_unit="generation")
+        offer.active = True
+        offer.save()
+        data = {"offer_id": str(offer.id), "expected_revision": self.project.revision, "terms_version": "2026-10-10", "refund_policy_version": "2026-10-10", "policies_accepted": True}
+        return create_generation_order(self.user, self.project.id, data, "paid-flow")[0]
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_payment_queues_one_job_and_completion_grants_one_download(self):
+        from commerce.models import Entitlement
+        from commerce.services import settle_order
+        order = self.prepare_paid_order()
+        self.assertIsNone(claim_job())
+        with override_settings(PAYMENT_CHECKOUT_ENABLED=False):
+            settle_order(order, "TX-PAID", {"test": True})
+            settle_order(order, "TX-PAID", {"test": True})
+        order.job.refresh_from_db()
+        self.assertEqual(order.job.state, "queued")
+        self.assertFalse(Entitlement.objects.filter(order=order).exists())
+        self.assertTrue(run_job(claim_job()))
+        order.refresh_from_db()
+        self.assertEqual(order.fulfillment_state, "downloadable")
+        self.assertIsNotNone(order.result_id)
+        self.assertEqual(Entitlement.objects.filter(order=order).count(), 1)
+        self.assertIsNone(claim_job())
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(f"/api/v1/results/{order.result_id}/master").status_code, 200)
+
+    def test_worker_rejects_creation_without_valid_trial_reservation(self):
+        from .models import AllowanceReservation
+        self.prepare()
+        job, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "invalid-trial")
+        AllowanceReservation.objects.filter(job=job).delete()
+        self.assertFalse(run_job(claim_job()))
+        job.refresh_from_db()
+        self.assertEqual(job.error_code, "generation_not_authorized")
+        self.assertFalse(self.project.results.exists())
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_late_payment_after_deletion_opens_one_refund_without_dispatch(self):
+        from commerce.services import settle_order
+        order = self.prepare_paid_order()
+        delete_project(self.user, self.project.id)
+        settle_order(order, "TX-LATE", {"test": True})
+        settle_order(order, "TX-LATE", {"test": True})
+        order.refresh_from_db()
+        self.assertEqual(order.payment_state, "paid")
+        self.assertEqual(order.refunds.count(), 1)
+        self.assertEqual(order.refunds.get().amount_idr, 9900)
+        self.assertIsNone(claim_job())
+        self.assertFalse(self.project.results.exists())
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_confirmed_paid_failure_opens_refund_but_uncertain_failure_holds(self):
+        from commerce.services import settle_order
+        from .worker import WorkerFailure
+        order = self.prepare_paid_order()
+        settle_order(order, "TX-FAIL", {"test": True})
+        with patch("processing.worker._generate", side_effect=WorkerFailure("provider_timeout", uncertain=True)):
+            self.assertFalse(run_job(claim_job()))
+        self.assertFalse(order.refunds.exists())
+        order.job.refresh_from_db()
+        self.assertEqual(order.job.state, "uncertain")
+        from .services import release_failed_job
+        release_failed_job(order.job, "confirmed_non_delivery")
+        release_failed_job(order.job, "confirmed_non_delivery")
+        self.assertEqual(order.refunds.count(), 1)
+
+    @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_CHECKOUT_ENABLED=True, PAYMENT_SERVER_KEY="server-key", PAYMENT_QRIS_ACQUIRER="gopay", AI_GATEWAY_MODE="9router")
+    def test_qris_charge_uses_stored_price_and_keeps_validated_instructions(self):
+        from commerce.api import order_json
+        from commerce.services import apply_provider_status
+        sent = []
+
+        def gateway(method, path, payload=None):
+            sent.append((method, path, payload))
+            return {"order_id": payload["transaction_details"]["order_id"], "transaction_id": "TX-CORE", "gross_amount": "9900.00", "currency": "IDR", "payment_type": "qris", "fraud_status": "accept", "transaction_status": "pending", "status_code": "201", "actions": [{"name": "generate-qr-code", "method": "GET", "url": "https://api.sandbox.midtrans.com/v2/qris/TX-CORE/qr-code"}]}
+
+        with patch("commerce.services._midtrans_request", side_effect=gateway, create=True):
+            order = self.prepare_paid_order()
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(sent[0][0:2], ("POST", "/v2/charge"))
+        self.assertEqual(sent[0][2]["transaction_details"], {"order_id": order.merchant_reference, "gross_amount": 9900})
+        self.assertEqual(order.payment_state, "pending")
+        self.assertEqual(order_json(order)["payment_instructions"]["qr_url"], "https://api.sandbox.midtrans.com/v2/qris/TX-CORE/qr-code")
+        status = {"order_id": order.merchant_reference, "transaction_id": "TX-CORE", "gross_amount": "9900.00", "currency": "IDR", "payment_type": "qris", "fraud_status": "accept", "transaction_status": "pending", "status_code": "201"}
+        apply_provider_status(order, status)
+        order.refresh_from_db()
+        self.assertIn("qr_url", order_json(order)["payment_instructions"])
+
+    @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_CHECKOUT_ENABLED=True, PAYMENT_SERVER_KEY="server-key", PAYMENT_QRIS_ACQUIRER="gopay", AI_GATEWAY_MODE="9router")
+    def test_charge_timeout_retains_order_and_only_retries_after_status_lookup(self):
+        from commerce.services import refresh_order
+        attempts = []
+
+        def gateway(method, path, payload=None):
+            attempts.append((method, path, payload))
+            raise ApiError(503, "payment_status_unavailable", "Timeout")
+
+        with patch("commerce.services._midtrans_request", side_effect=gateway, create=True):
+            order = self.prepare_paid_order()
+            self.assertEqual(order.payment_state, "uncertain")
+            with self.assertRaises(ApiError):
+                refresh_order(order)
+        self.assertEqual([item[0] for item in attempts], ["POST", "GET"])
+        self.assertEqual(self.project.orders.count(), 1)
+        self.assertEqual(self.project.jobs.get().state, "awaiting_payment")
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_expired_unpaid_order_releases_prepared_capacity(self):
+        from operations.management.commands.maintenance import reconcile_payments
+        order = self.prepare_paid_order()
+        Order.objects.filter(pk=order.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+        reconcile_payments(timezone.now())
+        order.refresh_from_db()
+        order.job.refresh_from_db()
+        self.assertEqual(order.payment_state, "expired")
+        self.assertEqual(order.job.state, "cancelled")
+        self.assertEqual(order.job.budget_reservation.state, "released")
+
+
+
+
     def test_legacy_consumed_allowance_counts_toward_lifetime_limit(self):
         from .models import Allowance, AllowanceReservation
 
