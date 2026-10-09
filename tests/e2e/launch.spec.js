@@ -66,8 +66,8 @@ test('landing, catalog filters, template detail and empty-state recovery', async
 
 test('content pages, private empty library, unknown routes and payment exclusion', async ({ page }) => {
   const routes = [
-    ['guide', 'Biar hasilnya oke, mulai dari fotonya.'], ['privacy', 'Privasi dan masa simpan'],
-    ['terms', 'Ketentuan penggunaan'], ['support', 'Butuh bantuan? Cerita, yuk.'],
+    ['guide', 'Biar hasilnya oke, mulai dari fotonya.'], ['privacy', 'Kebijakan Privasi'],
+    ['terms', 'Syarat dan Ketentuan'], ['support', 'Butuh bantuan? Cerita, yuk.'],
     ['projects', 'Foto saya'], ['missing-page', 'Halaman tidak ditemukan'], ['orders', 'Pembayaran belum tersedia'],
   ];
   for (const [route, heading] of routes) {

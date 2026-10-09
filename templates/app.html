@@ -13,8 +13,8 @@
   <title>MomenRia — Yuk, foto bareng</title>
   <link rel="icon" href="{% static 'app/favicon.svg' %}" type="image/svg+xml">
   <link rel="preload" href="{% static 'app/assets/fonts/bricolage-grotesque-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="{% static 'app/server.css' %}?v=20261009-design-revamp">
-  <script src="{% static 'app/server.js' %}?v=20261009-design-revamp" defer></script>
+  <link rel="stylesheet" href="{% static 'app/server.css' %}?v=20261010-pricing">
+  <script src="{% static 'app/server.js' %}?v=20261010-pricing" defer></script>
 </head>
 <body data-source-retention="{{ source_retention_days }}" data-result-retention="{{ result_retention_days }}" data-upload-limit="{{ upload_max_bytes }}">
   <a class="skip" href="#main">Lewati ke konten</a>
@@ -23,7 +23,7 @@
   <div id="connection-status" class="connection-status" hidden><p id="connection-message" role="alert"></p><button class="btn secondary small" data-retry-connection>Coba hubungkan lagi</button></div>
   <div id="job-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
   <div class="app-layout">
-    <main class="app-main" id="main" tabindex="-1"><div class="loading-text"><h1>Lagi jauh? Foto bareng tetap bisa.</h1><p>Pakai foto masing-masing untuk bikin foto bareng dengan AI. Pilih suasana, pakai foto yang sudah diizinkan, cek hasilnya, lalu download preview gratis.</p><p>Studio memerlukan JavaScript. Halaman akun dan pemulihan kata sandi dapat dibuka melalui tautan di bawah.</p></div></main>
+    <main class="app-main" id="main" tabindex="-1"><div class="loading-text"><h1>Lagi jauh? Foto bareng tetap bisa.</h1><p>Pakai foto masing-masing untuk bikin foto bareng dengan AI. Pilih suasana, pakai foto yang sudah diizinkan, cek hasilnya, lalu download preview gratis.</p><p>Studio memerlukan JavaScript. Halaman akun dan kebijakan tetap tersedia: <a href="/terms/">Ketentuan</a>, <a href="/privacy/">Privasi</a>, <a href="/refunds/">Pengembalian dana</a>, <a href="/contact/">Kontak</a>.</p></div></main>
   </div>
   <dialog class="dialog" id="dialog" aria-labelledby="dialog-title"></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>

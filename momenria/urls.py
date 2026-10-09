@@ -42,6 +42,17 @@ def health_ready(request):
 
 
 urlpatterns = [
+    *[
+        path(f"{page}/", TemplateView.as_view(template_name=f"public/{page}.html", extra_context={
+            "business_name": settings.BUSINESS_NAME,
+            "support_email": settings.SUPPORT_EMAIL,
+            "support_phone": settings.SUPPORT_PHONE,
+            "policy_version": settings.TERMS_VERSION,
+            "source_retention_days": settings.SOURCE_RETENTION_DAYS,
+            "result_retention_days": settings.RESULT_RETENTION_DAYS,
+        }), name=page)
+        for page in ("terms", "privacy", "refunds", "contact")
+    ],
     path("health/live", health_live),
     path("health/ready", health_ready),
     path("api/v1/templates", catalog_api.templates),

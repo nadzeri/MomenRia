@@ -1,0 +1,20 @@
+{% extends "public/base.html" %}
+{% block title %}Kebijakan Privasi{% endblock %}
+{% block heading %}Kebijakan Privasi{% endblock %}
+{% block content %}
+<h2>Data yang diproses</h2>
+<p>Kami menyimpan email akun, foto yang diupload, izin pemrosesan, posisi wajah, referensi karakter yang dipilih, hasil, masukan, pesanan dan pesan bantuan. Kamu tidak perlu memberikan nama, usia atau hubungan keluarga orang dalam foto.</p>
+<h2>Pemrosesan AI</h2>
+<p>Foto asli, referensi karakter yang dipilih dan konfigurasi template dikirim ke layanan AI untuk membuat atau mengoreksi foto. Referensi multi-sudut bersifat opsional dan dibuat AI; periksa sebelum dipakai. Foto asli tetap menjadi acuan utama. Kami mengecek jumlah dan kualitas wajah tanpa membuat profil identitas wajah.</p>
+<p>Pemakaian foto pelanggan di layanan publik memerlukan verifikasi penyedia AI, aturan penyimpanan dan penghapusan mereka serta persetujuan operasional. Simulasi pengujian hanya memakai foto contoh dan diberi penanda sintetis. Antarmuka ini tidak membuktikan kesiapan atau menjamin penghapusan langsung dari sistem penyedia.</p>
+<h2>Pembayaran</h2>
+<p>Saat pembayaran Midtrans diaktifkan, referensi pesanan, jumlah dalam Rupiah dan rincian satu pembelian dikirim ke Midtrans. Kami menyimpan referensi transaksi, status, waktu dan catatan pengembalian dana untuk verifikasi dan penyelesaian pesanan. MomenRia tidak meminta PIN atau kata sandi rekening/dompetmu; foto sumber tidak dikirim sebagai data pembayaran.</p>
+<h2>Masa simpan dan penghapusan</h2>
+<ul><li>Foto asli, thumbnail dan referensi karakter: {{ source_retention_days }} hari sejak upload.</li><li>Hasil dan preview: {{ result_retention_days }} hari sejak selesai. Koreksi/ucapan mengikuti batas simpan hasil awal.</li><li>Download atau membuka proyek tidak memperpanjang masa simpan.</li></ul>
+<p>Setelah proyek dihapus, akses foto langsung dihentikan dan file masuk antrean penghapusan. Proses yang selesai belakangan tidak akan mengembalikannya. Penghapusan dari cadangan dan layanan AI mengikuti prosedur pengelola serta aturan penyedia.</p>
+<p>Catatan pembayaran, refund, keamanan, dukungan, izin dan jumlah foto gratis dapat tetap disimpan setelah foto dihapus untuk penyelesaian transaksi, audit dan penegakan jatah seumur hidup. Batas simpan foto tidak berarti seluruh catatan keuangan atau bantuan dihapus bersamaan. Hubungi kami untuk permintaan terkait data akun.</p>
+<h2>Akses foto dan cookie</h2>
+<p>Dalam akun pribadi, akses dibatasi ke pemilik. Tim bantuan tidak otomatis mendapat akses foto. Kamu dapat mengizinkan satu staf mengakses foto proyek maksimal 24 jam dan mencabutnya di halaman Bantuan. Cookie sesi menjaga login; token keamanan melindungi tindakan akun. Penyimpanan sesi browser mengingat pilihan template.</p>
+<h2>Izin dan pertanyaan</h2>
+<p>Gunakan foto milikmu atau foto yang kamu berhak izinkan penggunaannya, termasuk kewenangan wali untuk foto anak. Baca <a href="/terms/">ketentuan</a> dan hubungi <a href="/contact/">MomenRia</a> untuk pertanyaan privasi. Jangan mengirim kata sandi atau foto pribadi di pesan bantuan.</p>
+{% endblock %}
