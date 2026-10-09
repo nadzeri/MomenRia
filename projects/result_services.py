@@ -15,6 +15,16 @@ from .services import emit_analytics, get_owned_project
 from .storage import store_bytes_atomically
 
 
+def authorized_root(result, owner):
+    from commerce.models import Entitlement
+    root = result.generation_root or result
+    if result.project.owner_id != owner.id or result.project.state != Project.State.ACTIVE or result.status != ResultVersion.Status.READY or result.expires_at <= timezone.now() or root.status != ResultVersion.Status.READY or root.expires_at <= timezone.now():
+        raise ApiError(404, "result_unavailable", "Hasil ini tidak tersedia.")
+    if not Entitlement.objects.filter(owner=owner, result_id_snapshot=root.id, revoked_at__isnull=True).exists():
+        raise ApiError(403, "download_not_authorized", "Akses hasil ini tidak tersedia. Hubungi Bantuan.")
+    return root
+
+
 def _jpeg(image, quality):
     output = io.BytesIO()
     image.save(output, "JPEG", quality=quality, optimize=True)

@@ -37,6 +37,6 @@ def pricing_for(owner=None):
         initialize_trial_allowances(owner)
         slots = Allowance.objects.filter(owner=owner, trial_slot__isnull=False)
         used = slots.filter(consumed_at__isnull=False).count()
-        reserved = slots.filter(consumed_at__isnull=True, reservation__released_at__isnull=True, reservation__job__state__in=Job.ACTIVE_STATES).count()
+        reserved = slots.filter(consumed_at__isnull=True, reservation__isnull=False, reservation__released_at__isnull=True).count()
         pricing.update(free_used=used, free_reserved=reserved, free_remaining=max(0, FREE_LIMIT - used - reserved))
     return pricing

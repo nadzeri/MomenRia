@@ -89,7 +89,84 @@ class ProcessingFlowTests(TestCase):
         for index, slot in enumerate(self.slots):
             self.upload_face(slot, index)
 
-    def test_completed_legacy_allowance_does_not_limit_new_creations(self):
+    def test_three_successful_creations_exhaust_quota_even_after_deletion(self):
+        from .quota import pricing_for
+        self.prepare()
+        for number in range(3):
+            admit_job(self.user, self.project.id, Job.Operation.CREATION, self.project.revision, f"trial-{number}")
+            self.assertTrue(run_job(claim_job()))
+            self.project.refresh_from_db()
+            self.assertEqual(pricing_for(self.user)["free_used"], number + 1)
+        with self.assertRaises(ApiError) as error:
+            admit_job(self.user, self.project.id, Job.Operation.CREATION, self.project.revision, "fourth")
+        self.assertEqual(error.exception.status, 402)
+        self.assertEqual(error.exception.code, "payment_required")
+        delete_project(self.user, self.project.id)
+        self.assertEqual(pricing_for(self.user)["free_remaining"], 0)
+
+    def test_confirmed_failed_trial_releases_slot_and_uncertain_trial_holds_it(self):
+        from .quota import pricing_for
+        from .services import release_failed_job
+        self.prepare()
+        job, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "failed-trial")
+        self.assertEqual(pricing_for(self.user)["free_reserved"], 1)
+        release_failed_job(job, "confirmed_failure")
+        self.assertEqual(pricing_for(self.user)["free_remaining"], 3)
+        retry, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "retry-trial")
+        self.assertEqual(retry.allowance_id, job.allowance_id)
+        Job.objects.filter(pk=retry.pk).update(state="uncertain")
+        self.assertEqual(pricing_for(self.user)["free_reserved"], 1)
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_paid_generation_order_freezes_inputs_before_payment(self):
+        from commerce.api import order_json
+        from commerce.services import create_generation_order
+        from .models import Allowance
+        from .quota import initialize_trial_allowances
+        self.prepare()
+        initialize_trial_allowances(self.user)
+        Allowance.objects.filter(owner=self.user, trial_slot__isnull=False).update(consumed_at=timezone.now())
+        offer = Offer.objects.get(purchase_unit="generation")
+        offer.active = True
+        offer.save()
+        data = {"offer_id": str(offer.id), "expected_revision": self.project.revision, "terms_version": "2026-10-10", "refund_policy_version": "2026-10-10", "policies_accepted": True}
+        order, created = create_generation_order(self.user, self.project.id, data, "paid-generation")
+        self.assertTrue(created)
+        self.assertEqual(order.amount_idr, 9900)
+        self.assertEqual(order.job.state, "awaiting_payment")
+        self.assertIsNone(claim_job())
+        self.assertIsNone(order_json(order)["result_id"])
+        self.assertIsNone(order_json(order)["download_url"])
+        self.assertIsNotNone(order.policies_accepted_at)
+        replay, created = create_generation_order(self.user, self.project.id, data, "paid-generation")
+        self.assertFalse(created)
+        self.assertEqual(replay.id, order.id)
+        self.assertEqual(self.project.jobs.count(), 1)
+        with override_settings(PAYMENT_CHECKOUT_ENABLED=False, TERMS_VERSION="new-policy"):
+            replay, created = create_generation_order(self.user, self.project.id, data, "paid-generation")
+            self.assertFalse(created)
+            self.assertEqual(replay.id, order.id)
+        with self.assertRaises(ApiError) as error:
+            assign_source(self.user, self.project.id, self.slots[0].id, self.project.assignments.first().source_id, self.project.revision)
+        self.assertEqual(error.exception.code, "project_frozen")
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_paid_api_rejects_unaccepted_stale_and_client_priced_requests(self):
+        self.prepare()
+        offer = Offer.objects.get(purchase_unit="generation")
+        offer.active = True
+        offer.save()
+        self.client.force_login(self.user)
+        data = {"offer_id": str(offer.id), "expected_revision": self.project.revision, "terms_version": "2026-10-10", "refund_policy_version": "2026-10-10", "policies_accepted": True}
+        for changes, expected in (({"policies_accepted": False}, 400), ({"terms_version": "old"}, 409), ({"amount_idr": 1}, 400), ({"expected_revision": True}, 400)):
+            response = self.client.post(f"/api/v1/projects/{self.project.id}/generation-orders", {**data, **changes}, content_type="application/json", HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
+            self.assertEqual(response.status_code, expected)
+        response = self.client.post(f"/api/v1/projects/{self.project.id}/generation-orders", data, content_type="application/json", HTTP_IDEMPOTENCY_KEY="early-purchase")
+        self.assertEqual(response.json()["code"], "free_pictures_available")
+        self.assertFalse(self.project.jobs.exists())
+        self.assertFalse(self.project.orders.exists())
+
+    def test_legacy_consumed_allowance_counts_toward_lifetime_limit(self):
         from .models import Allowance, AllowanceReservation
 
         self.prepare()
@@ -101,10 +178,10 @@ class ProcessingFlowTests(TestCase):
         self.assertTrue(self.client.get("/api/v1/session").json()["creation_available"])
         for number in range(2):
             revision = self.project.revision
-            key = f"unlimited-creation-{number}"
+            key = f"lifetime-creation-{number}"
             job, created = admit_job(self.user, self.project.id, Job.Operation.CREATION, revision, key)
             self.assertTrue(created)
-            self.assertIsNone(job.allowance_id)
+            self.assertIsNotNone(job.allowance_id)
             replay, created = admit_job(self.user, self.project.id, Job.Operation.CREATION, revision, key)
             self.assertFalse(created)
             self.assertEqual(replay.id, job.id)
@@ -115,6 +192,9 @@ class ProcessingFlowTests(TestCase):
             job.refresh_from_db()
             self.assertEqual(job.state, Job.State.READY)
             self.project.refresh_from_db()
+        with self.assertRaises(ApiError) as error:
+            admit_job(self.user, self.project.id, Job.Operation.CREATION, self.project.revision, "fourth-unpaid")
+        self.assertEqual(error.exception.code, "payment_required")
         self.assertEqual(self.project.results.count(), 2)
         allowance.refresh_from_db()
         self.assertIsNotNone(allowance.consumed_at)
@@ -372,7 +452,7 @@ class ProcessingFlowTests(TestCase):
         self.project = assign_source(self.user, self.project.id, self.slots[0].id, source.id, self.project.revision, character_sheet_id=sheet.id)
         portrait, _ = admit_job(self.user, self.project.id, Job.Operation.CREATION, self.project.revision, "after-sheet")
         self.assertEqual(portrait.input_snapshot["sources"][0]["character_sheet"]["id"], str(sheet.id))
-        self.assertIsNone(portrait.allowance_id)
+        self.assertIsNotNone(portrait.allowance_id)
 
     def test_rejected_generated_sheet_has_only_one_explicit_retry(self):
         self.configure_character_template(identity_strategy="generated_optional", generated_sheets_enabled=True, sheet_max_cost_idr=500)
@@ -631,7 +711,7 @@ class ProcessingFlowTests(TestCase):
         self.assertIn("attachment;", response["Content-Disposition"])
         self.assertEqual(response["Cache-Control"], "private, no-store")
         self.assertTrue(b"".join(response.streaming_content).startswith(b"\xff\xd8"))
-        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/master").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/master").status_code, 200)
         self.client.force_login(self.other)
         self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/preview?download=1").status_code, 404)
         self.client.force_login(self.user)
@@ -661,7 +741,7 @@ class ProcessingFlowTests(TestCase):
                 self.client.force_login(self.user)
                 self.assertEqual(self.client.get(url).status_code, 404)
         self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/preview?format=master").status_code, 400)
-        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/master").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/master").status_code, 200)
         self.assertEqual(self.project.results.count(), 1)
         self.assertEqual(self.project.jobs.count(), 1)
         self.assertEqual(list(job.result.media.values_list("sha256", flat=True)), original_hashes)
@@ -1074,6 +1154,41 @@ class ConcurrentAdmissionTests(TransactionTestCase):
         self.assertEqual(Job.objects.filter(project=self.project).count(), 1)
         self.assertEqual(sum(kind == "job" for kind, _ in outcomes), 1)
         self.assertEqual(len(outcomes), 20)
+
+    def test_one_remaining_trial_slot_is_atomic_across_projects(self):
+        from .models import Allowance, AllowanceReservation
+        from .quota import initialize_trial_allowances
+        initialize_trial_allowances(self.user)
+        Allowance.objects.filter(owner=self.user, trial_slot__in=(1, 2)).update(consumed_at=timezone.now())
+        second = create_project(self.user, self.project.template, self.project.offer)
+        consent = Consent.objects.create(project=second, owner=self.user, text_version="prd-v1", granted=True)
+        for assignment in self.project.assignments.select_related("source"):
+            source = assignment.source
+            source.pk = None
+            source.project = second
+            source.consent = consent
+            source.upload_key = f"second-{assignment.slot_id}"
+            source.save()
+            SlotAssignment.objects.create(project=second, slot=assignment.slot, source=source, revision=1)
+        barrier = threading.Barrier(2)
+        outcomes = []
+
+        def submit(project):
+            close_old_connections()
+            try:
+                barrier.wait(timeout=5)
+                admit_job(self.user, project.id, "creation", project.revision, str(uuid.uuid4()))
+                outcomes.append("job")
+            except Exception as error:
+                outcomes.append(getattr(error, "code", type(error).__name__))
+            finally:
+                connections.close_all()
+
+        threads = [threading.Thread(target=submit, args=(project,)) for project in (self.project, second)]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join(timeout=10)
+        self.assertCountEqual(outcomes, ["job", "free_pictures_processing"])
+        self.assertEqual(AllowanceReservation.objects.filter(allowance__owner=self.user).count(), 1)
 
     @override_settings(DAILY_BUDGET_IDR=3000)
     def test_global_budget_is_atomic_across_projects(self):

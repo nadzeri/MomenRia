@@ -94,7 +94,7 @@ components:
         id: {type: string, format: uuid}
         project_id: {type: string, format: uuid}
         operation: {enum: [creation, correction, character_sheet]}
-        state: {enum: [queued, dispatching, processing, uncertain, finalizing, ready, failed, cancelled]}
+        state: {enum: [awaiting_payment, queued, dispatching, processing, uncertain, finalizing, ready, failed, cancelled]}
         error_code: {type: string}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
@@ -409,6 +409,31 @@ paths:
         "200": {description: Sheet metadata and incremented project revision}
         "404": {$ref: '#/components/responses/NotFound'}
         "409": {description: Stale revision, active job, existing result, unassigned/expired source or sheet no longer reviewable}
+  /projects/{project_id}/generation-orders:
+    post:
+      summary: Prepare one paid picture after lifetime trial usage, with explicit policy acceptance
+      parameters:
+        - {$ref: '#/components/parameters/ProjectId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [offer_id, expected_revision, terms_version, refund_policy_version, policies_accepted]
+              properties:
+                offer_id: {type: string, format: uuid}
+                expected_revision: {type: integer}
+                terms_version: {type: string}
+                refund_policy_version: {type: string}
+                policies_accepted: {type: boolean, const: true}
+      responses:
+        "201": {description: Prepared generation order, content: {application/json: {schema: {$ref: '#/components/schemas/Order'}}}}
+        "200": {description: Accepted idempotent replay}
+        "409": {$ref: '#/components/responses/Conflict'}
+        "503": {description: New purchases paused}
   /projects/{project_id}/jobs:
     parameters:
       - {$ref: '#/components/parameters/ProjectId'}

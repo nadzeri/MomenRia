@@ -32,7 +32,7 @@ class GenerationOrderModelTests(TestCase):
 class MidtransSignatureTests(TestCase):
     def make_order(self, reference, state=Order.PaymentState.PENDING):
         user = User.objects.create_user(f"{reference.lower()}@example.com", "strong-password", email_verified=True)
-        offer = Offer.objects.create(version=Offer.objects.count() + 1, name="Uji", price_idr=19900, active=True)
+        offer = Offer.objects.create(version=(Offer.objects.order_by("-version").first().version if Offer.objects.exists() else 0) + 1, name="Uji", price_idr=19900, active=True)
         template = TemplateVersion.objects.create(slug=reference.lower(), version=1, name="Pay", occasion="Test", people_count=2, description="Test", sample_asset="sample.jpg", configuration_hash="d" * 64, generation_config={"model": "test"}, evidence_approved=True)
         project = Project.objects.create(owner=user, template=template, offer=offer, state=Project.State.ACTIVE)
         result = ResultVersion.objects.create(project=project, source_snapshot={}, region_snapshot={}, configuration_hash="d" * 64, kind=ResultVersion.Kind.CREATION, number=1, status=ResultVersion.Status.READY, expires_at=timezone.now() + timedelta(days=1))

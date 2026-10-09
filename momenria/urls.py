@@ -67,6 +67,7 @@ urlpatterns = [
     path("api/v1/projects/<uuid:project_id>/slots/<uuid:slot_id>", projects_api.slot),
     path("api/v1/projects/<uuid:project_id>/undo", projects_api.undo),
     path("api/v1/projects/<uuid:project_id>/jobs", processing_api.jobs),
+    path("api/v1/projects/<uuid:project_id>/generation-orders", commerce_api.generation_orders),
     path("api/v1/jobs/<uuid:job_id>", processing_api.job_detail),
     path("api/v1/results/<uuid:result_id>/preview", projects_api.preview),
     path("api/v1/results/<uuid:result_id>/master", projects_api.master),

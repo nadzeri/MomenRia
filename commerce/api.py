@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from momenria.http import ApiError, api_view, body_json, operator_api_view, public_api_view, uuid_value
 from operations.rate_limit import check_rate_limit
 
-from .services import apply_midtrans_notification, create_order, get_owned_order, refresh_order, request_refund, settle_order
+from .services import apply_midtrans_notification, create_generation_order, create_order, get_owned_order, refresh_order, request_refund, settle_order
 
 
 def order_json(order):
@@ -30,6 +30,13 @@ def orders(request, result_id):
     if set(data) != {"offer_id"}:
         raise ApiError(400, "invalid_fields", "Referensi penawaran wajib diisi.")
     order, created = create_order(request.user, result_id, uuid_value(data["offer_id"], "offer_id"), request.headers.get("Idempotency-Key", ""))
+    return JsonResponse(order_json(order), status=201 if created else 200)
+
+
+@api_view("POST", verified=True)
+def generation_orders(request, project_id):
+    check_rate_limit(request, "order", limit=20, seconds=3600)
+    order, created = create_generation_order(request.user, project_id, body_json(request), request.headers.get("Idempotency-Key", ""))
     return JsonResponse(order_json(order), status=201 if created else 200)
 
 

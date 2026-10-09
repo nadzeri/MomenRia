@@ -8,13 +8,15 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from momenria.http import ApiError
 from operations.models import AuditEvent, OutboxEvent, SupportTicket
-from processing.models import IdempotencyRecord
-from processing.services import canonical_hash
+from processing.models import IdempotencyRecord, Job
+from processing.services import admit_job, canonical_hash
+from catalog.models import Offer
 from projects.models import MediaAsset, Project, ResultVersion
 from projects.services import emit_analytics
 
@@ -24,11 +26,48 @@ from .models import Entitlement, Order, PaymentEvent, Refund
 def get_owned_order(owner, order_id, *, lock=False):
     query = Order.objects.select_related("project", "result", "offer", "entitlement").prefetch_related("refunds")
     if lock:
-        query = query.select_for_update()
+        query = query.select_for_update(of=("self",))
     try:
         return query.get(id=order_id, owner=owner)
     except Order.DoesNotExist as error:
         raise ApiError(404, "not_found", "Pesanannya nggak ketemu. Coba buka lagi dari halaman Pesanan.") from error
+
+
+def create_generation_order(owner, project_id, data, idempotency_key):
+    required = {"offer_id", "expected_revision", "terms_version", "refund_policy_version", "policies_accepted"}
+    if set(data) != required or type(data.get("expected_revision")) is not int or data.get("policies_accepted") is not True:
+        raise ApiError(400, "invalid_purchase", "Konfirmasi foto, penawaran dan kebijakan sebelum membayar.")
+    if not idempotency_key or len(idempotency_key) > 180:
+        raise ApiError(400, "idempotency_key_required", "Header Idempotency-Key wajib diisi.")
+    request_hash = canonical_hash({"project_id": str(project_id), **data})
+    with transaction.atomic():
+        get_user_model().objects.select_for_update().get(pk=owner.pk)
+        record = IdempotencyRecord.objects.filter(owner=owner, operation="order:generation", key=idempotency_key).first()
+        if record:
+            if record.request_hash != request_hash:
+                raise ApiError(409, "idempotency_conflict", "Kunci pesanan sudah dipakai untuk pembelian berbeda.")
+            return Order.objects.select_related("job").get(id=record.response["order_id"]), False
+        if not settings.PAYMENT_CHECKOUT_ENABLED or settings.PAYMENT_PROVIDER == "disabled":
+            raise ApiError(503, "payment_unavailable", "Pembelian foto baru sedang dijeda. Pesanan lama tetap bisa diperiksa.")
+        if settings.AI_GATEWAY_MODE == "fake" and not (settings.APP_ENV == "test" and settings.PAYMENT_PROVIDER == "fake"):
+            raise ApiError(409, "synthetic_payment_forbidden", "Hasil simulasi tidak dapat dikenakan pembayaran nyata.")
+        if data["terms_version"] != settings.TERMS_VERSION or data["refund_policy_version"] != settings.REFUND_POLICY_VERSION:
+            raise ApiError(409, "policy_changed", "Kebijakan berubah. Baca dan konfirmasi versi terbaru sebelum membeli.")
+        from momenria.http import uuid_value
+        offer = Offer.objects.filter(id=uuid_value(data["offer_id"], "offer_id"), active=True, purchase_unit="generation", price_idr=9900).first()
+        if not offer:
+            raise ApiError(409, "offer_changed", "Penawaran berubah. Muat ulang harga sebelum membeli.")
+        job, _ = admit_job(owner, project_id, Job.Operation.CREATION, data["expected_revision"], idempotency_key, payment_offer=offer)
+        order = Order.objects.create(owner=owner, project=job.project, job=job, purpose=Order.Purpose.GENERATION, offer=offer, merchant_reference=f"MR-{uuid.uuid4().hex[:20].upper()}", amount_idr=offer.price_idr, expires_at=timezone.now() + timedelta(minutes=15), terms_version=data["terms_version"], refund_policy_version=data["refund_policy_version"], policies_accepted_at=timezone.now())
+        IdempotencyRecord.objects.create(owner=owner, operation="order:generation", key=idempotency_key, request_hash=request_hash, status_code=201, response={"order_id": str(order.id)})
+        if settings.PAYMENT_PROVIDER == "fake" and settings.APP_ENV == "test":
+            order.payment_state = Order.PaymentState.PENDING
+            order.provider_payload = {"kind": "fake_qris", "message": "Pembayaran simulasi, tidak ada uang yang ditagih."}
+        else:
+            order.payment_state = Order.PaymentState.UNCERTAIN
+        order.save(update_fields=("payment_state", "provider_payload", "updated_at"))
+        emit_analytics("checkout_started", owner=owner, project=job.project, job=job, order=order)
+    return order, True
 
 
 def create_order(owner, result_id, offer_id, idempotency_key):

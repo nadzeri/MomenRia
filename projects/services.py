@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -290,13 +291,14 @@ def delete_project(owner, project_id):
 
     now = timezone.now()
     with transaction.atomic():
+        get_user_model().objects.select_for_update().get(pk=owner.pk)
         project = get_owned_project(owner, project_id, lock=True)
         project.state = Project.State.DELETED
         project.deletion_epoch += 1
         project.deleted_at = now
         _write_deletion_tombstone(project.id, project.deletion_epoch, now)
         project.save(update_fields=("state", "deletion_epoch", "deleted_at", "updated_at"))
-        safe_jobs = project.jobs.filter(state=Job.State.QUEUED)
+        safe_jobs = project.jobs.filter(state__in=(Job.State.QUEUED, Job.State.AWAITING_PAYMENT))
         for job in safe_jobs.select_related("budget_reservation"):
             if hasattr(job, "allowance_reservation"):
                 job.allowance_reservation.delete()

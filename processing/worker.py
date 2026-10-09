@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 
 from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
@@ -21,6 +22,7 @@ from projects.storage import store_bytes_atomically
 
 from .models import Allowance, BudgetReservation, Job, JobAttempt, WorkerControl
 from .services import release_failed_job
+from commerce.models import Entitlement
 
 
 class WorkerFailure(Exception):
@@ -306,6 +308,7 @@ def _finish_character_job(job, attempt, image, synthetic, actual_model):
 
 def run_job(job):
     with transaction.atomic():
+        get_user_model().objects.select_for_update().get(pk=job.owner_id)
         Project.objects.select_for_update().get(id=job.project_id)
         locked = Job.objects.select_for_update().get(id=job.id)
         if locked.lease_token != job.lease_token or locked.fencing_token != job.fencing_token or locked.state != Job.State.DISPATCHING:
@@ -335,6 +338,7 @@ def run_job(job):
         preview_bytes = _image_bytes(preview, quality=88)
         expires_at = timezone.now() + timedelta(days=settings.RESULT_RETENTION_DAYS)
         with transaction.atomic():
+            get_user_model().objects.select_for_update().get(pk=job.owner_id)
             project = Project.objects.select_for_update().get(id=job.project_id)
             locked = Job.objects.select_for_update().get(id=job.id)
             if locked.lease_token != job.lease_token or locked.fencing_token != job.fencing_token:
@@ -367,6 +371,7 @@ def run_job(job):
             if locked.allowance_id:
                 locked.allowance.consumed_at = timezone.now()
                 locked.allowance.save(update_fields=("consumed_at",))
+                Entitlement.objects.create(owner=locked.owner, result=result, result_id_snapshot=result.id, grant_source=Entitlement.GrantSource.TRIAL)
             locked.state = Job.State.READY
             locked.result = result
             locked.save(update_fields=("state", "result", "updated_at"))
