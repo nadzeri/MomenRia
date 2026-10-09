@@ -15,6 +15,7 @@ def job_json(job):
         "state": job.state, "error_code": job.error_code,
         "created_at": job.created_at.isoformat(), "updated_at": job.updated_at.isoformat(),
         "result_id": str(job.result_id) if job.result_id else None,
+        "order_id": str(job.generation_order.id) if hasattr(job, "generation_order") else None,
         "character_sheet_id": str(job.character_sheet_id) if job.character_sheet_id else None,
         "status_url": f"/api/v1/jobs/{job.id}",
         "poll_after_seconds": 3 if job.state in Job.ACTIVE_STATES else None,

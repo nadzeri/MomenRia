@@ -12,6 +12,7 @@ from http.client import HTTPException
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -27,7 +28,7 @@ from .models import Entitlement, Order, PaymentEvent, Refund
 
 
 def get_owned_order(owner, order_id, *, lock=False):
-    query = Order.objects.select_related("project", "result", "offer", "entitlement").prefetch_related("refunds")
+    query = Order.objects.select_related("owner", "project", "result__project", "result__generation_root", "job", "offer", "entitlement").prefetch_related("refunds")
     if lock:
         query = query.select_for_update(of=("self",))
     try:
@@ -302,15 +303,9 @@ def apply_provider_status(order, status, *, expected_transaction_id=None, paymen
             order.payment_state = Order.PaymentState.PAID
             order.provider_transaction_id = order.provider_transaction_id or status["transaction_id"]
             order.paid_at = order.paid_at or timezone.now()
-            order.fulfillment_state = Order.FulfillmentState.ENDED
             order.save()
             refund, _ = request_refund(None, order.id, "Pengembalian dana penuh dikonfirmasi oleh Midtrans", f"provider-refund-{order.id}")
-            refund.state = Refund.State.SUCCEEDED
-            refund.provider_reference = refund.provider_reference or f"MIDTRANS-{status['transaction_id']}"
-            refund.save(update_fields=("state", "provider_reference", "updated_at"))
-            Entitlement.objects.filter(result_id_snapshot=order.result_id_snapshot, owner=order.owner, revoked_at__isnull=True).update(revoked_at=timezone.now())
-            if order.job_id:
-                cancel_prepared_job(order.job, "order_refunded")
+            complete_refund(order, refund, refund.provider_reference or f"MIDTRANS-{status['transaction_id']}")
             AuditEvent.objects.get_or_create(action="refund_verified", object_type="refund", object_id=refund.id, defaults={"reason": "Authenticated Midtrans status confirms full refund", "metadata": {"amount_idr": order.amount_idr}})
         elif order.payment_state != Order.PaymentState.PAID and state != "partial_refund":
             order.payment_state = {"pending": Order.PaymentState.PENDING, "deny": Order.PaymentState.FAILED, "cancel": Order.PaymentState.CANCELLED, "expire": Order.PaymentState.EXPIRED}[state]
@@ -385,3 +380,55 @@ def request_refund(operator, order_id, reason, idempotency_key):
         OutboxEvent.objects.create(topic="refund.requested", payload={"refund_id": str(refund.id), "order_id": str(order.id)})
         emit_analytics("refund_recorded", owner=order.owner, project=order.project, result=order.result, order=order, dimensions={"refund_id": str(refund.id)})
         return refund, True
+
+
+def complete_refund(order, refund, reference):
+    refund.state = Refund.State.SUCCEEDED
+    refund.provider_reference = reference
+    refund.save(update_fields=("state", "provider_reference", "updated_at"))
+    order.fulfillment_state = Order.FulfillmentState.ENDED
+    order.save(update_fields=("fulfillment_state", "updated_at"))
+    root_id = order.result.generation_root_id or order.result_id_snapshot if order.result else order.result_id_snapshot
+    Entitlement.objects.filter(result_id_snapshot__in=(order.result_id_snapshot, root_id), owner=order.owner, revoked_at__isnull=True).update(revoked_at=timezone.now())
+    if order.job_id:
+        cancel_prepared_job(order.job, "order_refunded")
+    if root_id:
+        for job in Job.objects.filter(owner=order.owner, state__in=Job.ACTIVE_STATES).filter(Q(parent_result_id=root_id) | Q(parent_result__generation_root_id=root_id)).select_for_update(of=("self",)):
+            cancel_prepared_job(job, "order_refunded")
+
+
+def record_refund_outcome(operator, refund_id, *, outcome, amount_idr, reference, evidence, reason):
+    if not operator.is_active or not operator.is_staff:
+        raise ApiError(404, "not_found", "Sumber daya tidak ditemukan.")
+    if outcome not in (Refund.State.PROCESSING, Refund.State.UNCERTAIN, Refund.State.FAILED, Refund.State.SUCCEEDED) or type(amount_idr) is not int:
+        raise ApiError(400, "invalid_refund", "Status atau jumlah refund tidak valid.")
+    if any(not isinstance(value, str) or not minimum <= len(value.strip()) <= maximum for value, minimum, maximum in ((reference, 5, 180), (evidence, 10, 1000), (reason, 10, 500))):
+        raise ApiError(400, "refund_evidence_required", "Isi referensi eksternal, bukti terverifikasi dan alasan refund.")
+    with transaction.atomic():
+        try:
+            refund = Refund.objects.select_related("order").get(pk=refund_id)
+        except Refund.DoesNotExist as error:
+            raise ApiError(404, "not_found", "Refund tidak ditemukan.") from error
+        order = lock_order(refund.order)
+        refund = Refund.objects.select_for_update().get(pk=refund.pk)
+        if order.payment_state != Order.PaymentState.PAID or amount_idr != order.amount_idr or amount_idr != refund.amount_idr:
+            raise ApiError(400, "refund_mismatch", "Refund penuh harus sama dengan jumlah pesanan yang sudah dibayar.")
+        reference = reference.strip()
+        if refund.state == Refund.State.SUCCEEDED:
+            if outcome == Refund.State.SUCCEEDED and refund.provider_reference == reference:
+                return refund
+            raise ApiError(409, "refund_already_completed", "Refund ini sudah selesai; rekaman tidak boleh diubah.")
+        if Refund.objects.exclude(pk=refund.pk).filter(provider_reference=reference).exists():
+            raise ApiError(409, "refund_reference_used", "Referensi ini sudah dipakai refund lain.")
+        try:
+            with transaction.atomic():
+                if outcome == Refund.State.SUCCEEDED:
+                    complete_refund(order, refund, reference)
+                else:
+                    refund.state, refund.provider_reference = outcome, reference
+                    refund.save(update_fields=("state", "provider_reference", "updated_at"))
+        except IntegrityError as error:
+            raise ApiError(409, "refund_reference_used", "Referensi ini sudah dipakai refund lain.") from error
+        AuditEvent.objects.create(actor=operator, action=f"refund.{outcome}", object_type="refund", object_id=refund.id, reason=reason.strip(), metadata={"amount_idr": amount_idr, "reference": reference, "evidence": evidence.strip()})
+        OutboxEvent.objects.create(topic=f"refund.{outcome}", payload={"refund_id": str(refund.id), "order_id": str(order.id)})
+        return refund

@@ -4,7 +4,7 @@
 
 Production requires `PUBLIC_ACCESS=false`; shared-owner mode is rejected at startup. `PUBLIC_ACCESS=true` is for isolated test demos only. Anyone reaching such a demo can access that owner's workflow and data; never upload real customer photos there. Admin/operator authentication and MFA remain mandatory.
 
-The current launch scope excludes payments. Keep `PAYMENT_PROVIDER=disabled`; QRIS, merchant onboarding, settlement and refunds below apply only to a later paid release. See `docs/launch-readiness.md` for the non-payment go/no-go checklist.
+The current pricing release provides three lifetime successful free creations per account, then IDR9,900 per new picture. Corrections to the same picture and full-quality downloads remain free. Keep new paid checkout paused until the merchant, channel, policy, refund and AI/privacy gates close; see `docs/midtrans-review-checklist.md` and `docs/launch-readiness.md`. If money is already in flight, keep the payment provider configured for reconciliation while `PAYMENT_CHECKOUT_ENABLED=false` pauses new purchases.
 
 Keep admissions disabled until owner records decisions D01 to D12 from technical requirements. Hard blockers for real customer processing:
 
@@ -55,7 +55,11 @@ Browser return does not grant access. Signed webhook plus authenticated provider
 
 ### Refund runbook
 
-Confirm delivery cannot be restored and policy permits refund. Create one refund request using stable idempotency key and full amount. Submit through approved merchant procedure, then record provider refund ID, terminal state, operator, reason, and timestamps. On timeout, query same provider request before retrying; never generate a new identity. Reconcile against settlement report. Live submission stays disabled until D04 and D11 close.
+Confirm delivery cannot be restored and the approved policy permits refund. Create one full-amount request through the operator API (staff MFA and recent authentication, stable Idempotency-Key) or use the automatically raised failed-generation request. Different keys cannot create a second outstanding/successful full refund. Issue the refund in the approved Midtrans dashboard procedure; this application does not submit a refund transfer.
+
+Open the Refund record in staff admin and choose **Record external refund outcome**. Enter the exact order amount in IDR, external reference, verified dashboard/report or approved manual-transfer evidence, outcome and audit reason. Staff MFA, refund-change permission and recent authentication protect submission. Audit events retain actor, timestamp, amount, reference, reason and evidence. Processing/uncertain outcomes do not revoke access. Verified success revokes future root/derived access and stops dispatch; completed records cannot be rewritten, and payment replay does not restore access. Already downloaded copies cannot be recalled.
+
+On timeout, query the same provider request before retrying; never generate a new refund identity. Reconcile against settlement reports daily. If the provider method/window cannot provide the approved remedy, staff must verify an owner-approved manual-transfer fallback and record its bank/report reference and verified completion. Final eligibility, support deadlines and fallback ownership must be approved before release; live submission remains an external release gate.
 
 ### Paid-file failure runbook
 

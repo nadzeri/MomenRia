@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from momenria.http import ApiError
+from catalog.models import Offer
 from projects.models import ResultVersion
 
 from .models import Allowance, Job
@@ -34,7 +35,9 @@ def initialize_trial_allowances(owner):
 
 
 def pricing_for(owner=None):
-    pricing = {"model": "three_free_then_per_picture", "free_limit": FREE_LIMIT, "free_used": None, "free_reserved": None, "free_remaining": None, "price_idr": PRICE_IDR, "currency": "IDR", "checkout_enabled": settings.PAYMENT_CHECKOUT_ENABLED and settings.PAYMENT_PROVIDER != "disabled", "audit_required": False}
+    provider_ready = settings.PAYMENT_PROVIDER == "fake" and settings.APP_ENV == "test" or settings.PAYMENT_PROVIDER == "midtrans" and bool(settings.PAYMENT_SERVER_KEY) and settings.PAYMENT_QRIS_ACQUIRER in {"gopay", "airpay shopee"} and settings.AI_GATEWAY_MODE != "fake"
+    checkout_enabled = settings.PAYMENT_CHECKOUT_ENABLED and provider_ready and Offer.objects.filter(active=True, purchase_unit="generation", price_idr=PRICE_IDR).exists()
+    pricing = {"model": "three_free_then_per_picture", "free_limit": FREE_LIMIT, "free_used": None, "free_reserved": None, "free_remaining": None, "price_idr": PRICE_IDR, "currency": "IDR", "checkout_enabled": checkout_enabled, "audit_required": False}
     if owner and owner.is_authenticated:
         try:
             initialize_trial_allowances(owner)

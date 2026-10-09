@@ -136,6 +136,7 @@ class ProcessingFlowTests(TestCase):
         self.assertEqual(order.job.state, "awaiting_payment")
         self.assertIsNone(claim_job())
         self.assertIsNone(order_json(order)["result_id"])
+        self.assertEqual(order_json(order)["job_state"], "awaiting_payment")
         self.assertIsNone(order_json(order)["download_url"])
         self.assertIsNotNone(order.policies_accepted_at)
         replay, created = create_generation_order(self.user, self.project.id, data, "paid-generation")
@@ -177,7 +178,22 @@ class ProcessingFlowTests(TestCase):
         offer.active = True
         offer.save()
         data = {"offer_id": str(offer.id), "expected_revision": self.project.revision, "terms_version": "2026-10-10", "refund_policy_version": "2026-10-10", "policies_accepted": True}
-        return create_generation_order(self.user, self.project.id, data, "paid-flow")[0]
+        return create_generation_order(self.user, self.project.id, data, f"paid-flow-{self.project.id}")[0]
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_refund_before_result_does_not_cancel_another_paid_picture(self):
+        from commerce.services import record_refund_outcome, request_refund, settle_order
+        order = self.prepare_paid_order()
+        settle_order(order, "TX-NO-RESULT")
+        self.project = create_project(self.user, self.template, self.offer)
+        other = self.prepare_paid_order()
+        operator = User.objects.create_superuser("refund-before-result@example.com", "test-password")
+        refund, _ = request_refund(operator, order.id, "Customer remedy before dispatch", "refund-before-result")
+        record_refund_outcome(operator, refund.id, outcome="succeeded", amount_idr=9900, reference="REF-NO-RESULT", evidence="Verified completed full refund", reason="Approved customer remedy before dispatch")
+        order.job.refresh_from_db()
+        other.job.refresh_from_db()
+        self.assertEqual(order.job.state, "cancelled")
+        self.assertEqual(other.job.state, "awaiting_payment")
 
     @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
     def test_payment_queues_one_job_and_completion_grants_one_download(self):

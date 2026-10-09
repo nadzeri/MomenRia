@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: MomenRia API
   version: 0.4.0
-  description: Same-origin API with private customer accounts and CSRF-protected mutations. Shared-owner PUBLIC_ACCESS mode is test-only and rejected in production. Payments may be disabled while owner-only preview downloads remain available. Operator endpoints require authenticated staff sessions.
+  description: Same-origin API with private accounts and CSRF-protected mutations. Three lifetime successful free new pictures per account, then IDR9900 per new picture; corrections and full-quality downloads remain free. Shared-owner PUBLIC_ACCESS is test-only. New checkout can be paused while reconciliation and authorized downloads continue. Operator endpoints require staff MFA and recent authentication for sensitive actions.
 servers:
   - url: /api/v1
 components:
@@ -23,12 +23,15 @@ components:
         price_idr: {type: integer, const: 9900}
         currency: {const: IDR}
         checkout_enabled: {type: boolean}
+        audit_required: {type: boolean}
     Order:
       type: object
       properties:
         id: {type: string, format: uuid}
         purpose: {enum: [generation, result_download]}
         job_id: {type: [string, "null"], format: uuid}
+        job_state: {type: [string, "null"]}
+        project_id: {type: [string, "null"], format: uuid}
         result_id: {type: [string, "null"], format: uuid}
         amount: {type: integer, minimum: 1}
         currency: {const: IDR}
@@ -158,7 +161,8 @@ paths:
                   public_access: {type: boolean}
                   email_verified: {type: boolean}
                   csrf_token: {type: string}
-                  creation_available: {type: boolean, description: Always true; creation has no lifetime quota}
+                  creation_available: {type: boolean, description: Free quota or configured paid checkout is available; admission, source and capacity checks still apply}
+                  pricing: {$ref: '#/components/schemas/Pricing'}
                   operating_mode:
                     type: object
                     properties:
@@ -175,6 +179,8 @@ paths:
                       source_retention_days: {type: integer}
                       result_retention_days: {type: integer}
                       upload_max_bytes: {type: integer}
+                      terms_version: {type: string}
+                      refund_policy_version: {type: string}
   /templates:
     get:
       security: []
@@ -487,7 +493,11 @@ paths:
   /results/{result_id}/master:
     get:
       summary: Stream exact entitled master
-      parameters: [{$ref: '#/components/parameters/ResultId'}]
+      parameters:
+        - {$ref: '#/components/parameters/ResultId'}
+        - name: format
+          in: query
+          schema: {type: string, enum: [original, square, portrait, story], default: original}
       responses:
         "200": {description: JPEG master, content: {image/jpeg: {schema: {type: string, format: binary}}}}
         "404": {$ref: '#/components/responses/NotFound'}

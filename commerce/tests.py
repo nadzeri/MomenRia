@@ -44,6 +44,55 @@ class GenerationOrderModelTests(TestCase):
 
 
 class MidtransSignatureTests(TestCase):
+    def test_staff_refund_outcome_needs_evidence_and_revokes_once(self):
+        from operations.models import AuditEvent
+        from .services import record_refund_outcome, settle_order
+        user, order = self.make_order("MR-MANUAL-REFUND")
+        order = settle_order(order, "TX-MANUAL")
+        operator = User.objects.create_superuser("manual-operator@example.com", "test-password")
+        refund, _ = request_refund(operator, order.id, "Confirmed delivery failure", "manual-refund")
+        values = dict(outcome="succeeded", amount_idr=19900, reference="DASHBOARD-REF-1", evidence="Verified Midtrans dashboard refund report", reason="Confirmed full refund in dashboard")
+        for bad in ({**values, "amount_idr": 9900}, {**values, "evidence": ""}, {**values, "amount_idr": True}):
+            with self.assertRaises(ApiError):
+                record_refund_outcome(operator, refund.id, **bad)
+        with self.assertRaises(ApiError):
+            record_refund_outcome(user, refund.id, **values)
+        self.assertTrue(Entitlement.objects.filter(order=order, revoked_at__isnull=True).exists())
+        record_refund_outcome(operator, refund.id, **{**values, "outcome": "uncertain"})
+        self.assertTrue(Entitlement.objects.filter(order=order, revoked_at__isnull=True).exists())
+        record_refund_outcome(operator, refund.id, **values)
+        record_refund_outcome(operator, refund.id, **values)
+        order.refresh_from_db()
+        self.assertEqual(order.fulfillment_state, "ended")
+        self.assertFalse(Entitlement.objects.filter(order=order, revoked_at__isnull=True).exists())
+        self.assertEqual(AuditEvent.objects.filter(action="refund.succeeded", actor=operator).count(), 1)
+        with self.assertRaises(ApiError):
+            record_refund_outcome(operator, refund.id, **{**values, "reference": "ANOTHER-REF"})
+        settle_order(order, "TX-MANUAL")
+        self.assertFalse(Entitlement.objects.filter(order=order, revoked_at__isnull=True).exists())
+
+    def test_refund_recording_admin_requires_staff_mfa_and_recent_authentication(self):
+        from allauth.mfa.models import Authenticator
+        from .services import settle_order
+        user, order = self.make_order("MR-ADMIN-REFUND")
+        order = settle_order(order, "TX-ADMIN")
+        operator = User.objects.create_superuser("refund-admin@example.com", "test-password")
+        refund, _ = request_refund(operator, order.id, "Confirmed delivery failure", "admin-refund")
+        url = f"/admin/commerce/refund/{refund.id}/record/"
+        self.client.force_login(user)
+        self.assertEqual(self.client.get(url).status_code, 302)
+        self.client.force_login(operator)
+        self.assertRedirects(self.client.get(url), "/accounts/2fa/", fetch_redirect_response=False)
+        Authenticator.objects.create(user=operator, type=Authenticator.Type.TOTP, data={"secret": "test-secret"})
+        self.assertEqual(self.client.get(url).status_code, 200)
+        values = dict(outcome="succeeded", amount_idr=19900, reference="DASHBOARD-ADMIN-1", evidence="Verified refund report in dashboard", audit_reason="Confirmed complete refund")
+        self.assertIn("reauthenticate", self.client.post(url, values)["Location"])
+        with patch("allauth.account.internal.flows.reauthentication.did_recently_authenticate", return_value=True):
+            response = self.client.post(url, values)
+            self.assertEqual(response.status_code, 302, response.context["form"].errors if response.context else "")
+        refund.refresh_from_db()
+        self.assertEqual(refund.state, "succeeded")
+
     def make_order(self, reference, state=Order.PaymentState.PENDING):
         user = User.objects.create_user(f"{reference.lower()}@example.com", "strong-password", email_verified=True)
         offer = Offer.objects.create(version=(Offer.objects.order_by("-version").first().version if Offer.objects.exists() else 0) + 1, name="Uji", price_idr=19900, active=True)

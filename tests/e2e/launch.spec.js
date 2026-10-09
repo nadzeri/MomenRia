@@ -77,7 +77,7 @@ test('content pages, private empty library, unknown routes and payment exclusion
   }
   await page.goto('/#/support');
   await page.getByText('Yang gratis dapat apa saja?', { exact: true }).click();
-  await expect(page.getByText(/Preview dengan watermark bisa kamu download gratis/)).toBeVisible();
+  await expect(page.getByText(/3 foto baru gratis seumur hidup per akun/)).toBeVisible();
   await expect(page.getByRole('link', { name: 'Pesanan', exact: true })).toHaveCount(0);
   await page.goto('/#/projects');
   await expect(page.getByRole('link', { name: 'Masuk ke akun' })).toBeVisible();
@@ -138,7 +138,7 @@ test('complete private portrait lifecycle through real Django and synthetic work
   await expect(page.getByRole('heading', { name: 'Yuk, cek hasil fotomu', exact: true })).toBeVisible({ timeout: 30000 });
   expect(submissions).toBe(1);
   await expect(page.getByRole('button', { name: 'Beli versi ini' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Pesanan', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Pesanan', exact: true })).toHaveCount(1);
   const projectUrl = page.url();
   const resultId = await page.locator('[data-greeting]').getAttribute('data-greeting');
   await page.getByRole('button', { name: 'Simpan foto', exact: true }).click();
@@ -393,7 +393,7 @@ test('event and university filters lead into a complete solo graduation portrait
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Cek dan pasang foto' }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
-  await page.getByRole('button', { name: 'Buat potret', exact: true }).click();
+  await page.getByRole('button', { name: /Buat potret gratis/ }).click();
   await expect(page.locator('.result-image img')).toBeVisible({ timeout: 60000 });
   await screenshot(page, testInfo, 'solo-graduation-result');
   await page.getByRole('link', { name: 'Template', exact: true }).click();
