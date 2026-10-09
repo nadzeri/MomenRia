@@ -15,7 +15,7 @@ from processing.models import Job
 from .models import CharacterSheet, MediaAsset, Project, ResultVersion, SourceAsset
 from .character_sheets import build_source_sheet, sheet_json
 from .services import assign_source, change_template, create_project, delete_project, emit_analytics, get_owned_project, undo_assignment, validate_and_store_source
-from .result_services import create_greeting, frame_preview, record_feedback
+from .result_services import authorized_root, create_greeting, export_dimensions, frame_preview, record_feedback
 
 
 def latest_feedback(result):
@@ -234,36 +234,40 @@ def character_sheet_preview(request, sheet_id):
 
 def _result_for_owner(owner, result_id):
     try:
-        return ResultVersion.objects.select_related("project").get(id=result_id, project__owner=owner, project__state__in=(Project.State.DRAFT, Project.State.ACTIVE), status=ResultVersion.Status.READY, expires_at__gt=timezone.now())
+        result = ResultVersion.objects.select_related("project", "generation_root").get(id=result_id, project__owner=owner, project__state__in=(Project.State.DRAFT, Project.State.ACTIVE), status=ResultVersion.Status.READY, expires_at__gt=timezone.now())
     except ResultVersion.DoesNotExist as error:
         raise ApiError(404, "not_found", "Hasilnya nggak ketemu. Coba buka lagi dari Foto saya.") from error
+    authorized_root(result, owner)
+    return result
+
+
+def _result_image(result, *, download, format_name="original", thumbnail=False):
+    if format_name not in {"original", "square", "portrait", "story"}:
+        raise ApiError(400, "invalid_format", "Pilih format asli, persegi, potret, atau Story.")
+    try:
+        media = result.media.get(kind=MediaAsset.Kind.PREVIEW if thumbnail else MediaAsset.Kind.MASTER, deleted_at__isnull=True, expires_at__gt=timezone.now())
+        if format_name != "original":
+            size = export_dimensions(media.width, media.height, format_name)
+            with media.file.open("rb") as source:
+                content = frame_preview(source, size)
+        else:
+            content = media.file.open("rb")
+        suffix = "" if format_name == "original" else f"-{format_name}"
+        response = FileResponse(content, content_type="image/jpeg", as_attachment=download, filename=f"momenria-{result.id}{suffix}.jpg")
+    except (MediaAsset.DoesNotExist, OSError) as error:
+        raise ApiError(404, "not_found", "File foto belum tersedia. Hubungi Bantuan.") from error
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @api_view("GET")
 def preview(request, result_id):
     result = _result_for_owner(request.user, result_id)
-    format_name = request.GET.get("format", "original")
-    formats = {"original": None, "square": (768, 768), "portrait": (576, 768), "story": (432, 768)}
-    if format_name not in formats:
-        raise ApiError(400, "invalid_format", "Pilih format asli, persegi, potret, atau Story.")
-    try:
-        media = result.media.get(kind=MediaAsset.Kind.PREVIEW, deleted_at__isnull=True, expires_at__gt=timezone.now())
-    except MediaAsset.DoesNotExist as error:
-        raise ApiError(404, "not_found", "Preview belum bisa dibuka. Coba lagi dari Foto saya.") from error
     download = request.GET.get("download") == "1"
-    try:
-        if formats[format_name]:
-            with media.file.open("rb") as source:
-                content = frame_preview(source, formats[format_name])
-        else:
-            content = media.file.open("rb")
-        suffix = "" if format_name == "original" else f"-{format_name}"
-        response = FileResponse(content, content_type="image/jpeg", as_attachment=download, filename=f"momenria-preview-{result.id}{suffix}.jpg")
-    except OSError as error:
-        raise ApiError(404, "not_found", "Preview belum bisa dibuka. Hubungi Bantuan, ya.") from error
-    response["Cache-Control"] = "private, no-store"
+    format_name = request.GET.get("format", "original")
+    response = _result_image(result, download=download, format_name=format_name, thumbnail=not download and "format" not in request.GET)
     if download:
-        emit_analytics("download_completed", owner=request.user, project=result.project, result=result, dimensions={"kind": "preview", "format": format_name})
+        emit_analytics("download_completed", owner=request.user, project=result.project, result=result, dimensions={"kind": "master", "format": format_name})
     return response
 
 
@@ -283,14 +287,7 @@ def source_thumbnail(request, source_id):
 @api_view("GET")
 def master(request, result_id):
     result = _result_for_owner(request.user, result_id)
-    if not Entitlement.objects.filter(owner=request.user, result_id_snapshot=result.id, revoked_at__isnull=True).exists():
-        raise ApiError(404, "not_found", "Hasilnya nggak ketemu. Coba buka lagi dari Foto saya.")
-    try:
-        media = result.media.get(kind=MediaAsset.Kind.MASTER, deleted_at__isnull=True)
-    except MediaAsset.DoesNotExist as error:
-        raise ApiError(404, "not_found", "Filenya belum bisa dibuka. Hubungi Bantuan, ya.") from error
-    response = FileResponse(media.file.open("rb"), content_type="image/jpeg", as_attachment=True, filename=f"momenria-{result.id}.jpg")
-    response["Cache-Control"] = "private, no-store"
+    response = _result_image(result, download=True, format_name=request.GET.get("format", "original"))
     emit_analytics("download_completed", owner=request.user, project=result.project, result=result)
     return response
 

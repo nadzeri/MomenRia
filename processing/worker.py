@@ -242,14 +242,6 @@ def _image_bytes(image, quality=94):
 def _preview(master):
     image = master.copy()
     image.thumbnail((768, 768), Image.Resampling.LANCZOS)
-    draw = ImageDraw.Draw(image, "RGBA")
-    text = "MomenRia · PRATINJAU"
-    font = ImageFont.load_default(size=24)
-    box = draw.textbbox((0, 0), text, font=font)
-    x = max(16, image.width - (box[2] - box[0]) - 24)
-    y = max(16, image.height - (box[3] - box[1]) - 24)
-    draw.rounded_rectangle((x - 10, y - 8, image.width - 14, image.height - 12), radius=8, fill=(20, 50, 38, 175))
-    draw.text((x, y), text, font=font, fill=(255, 255, 255, 235))
     return image
 
 

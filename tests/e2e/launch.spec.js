@@ -143,13 +143,13 @@ test('complete private portrait lifecycle through real Django and synthetic work
   const resultId = await page.locator('[data-greeting]').getAttribute('data-greeting');
   await page.getByRole('button', { name: 'Simpan foto', exact: true }).click();
   const downloadEvent = page.waitForEvent('download');
-  await page.getByRole('link', { name: 'Download preview', exact: true }).click();
+  await page.getByRole('link', { name: 'Download foto', exact: true }).click();
   const download = await downloadEvent;
-  expect(download.suggestedFilename()).toBe(`momenria-preview-${resultId}.jpg`);
+  expect(download.suggestedFilename()).toBe(`momenria-${resultId}.jpg`);
   expect(await download.failure()).toBeNull();
   await page.keyboard.press('Escape');
   const response = await page.request.get(`/api/v1/results/${resultId}/master`);
-  expect(response.status()).toBe(404);
+  expect(response.status()).toBe(200);
   const outsider = await browser.newContext({ baseURL: new URL(page.url()).origin });
   const outsiderPage = await outsider.newPage();
   await login(outsiderPage, 'outsider');

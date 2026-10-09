@@ -1,9 +1,11 @@
 import hashlib
+import math
 import io
 import unicodedata
 
 from PIL import Image, ImageDraw, ImageFont
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
@@ -45,7 +47,16 @@ def frame_preview(file, canvas_size):
     image.thumbnail(canvas_size, Image.Resampling.LANCZOS)
     canvas = Image.new("RGB", canvas_size, "#f5f3ec")
     canvas.paste(image, ((canvas.width - image.width) // 2, (canvas.height - image.height) // 2))
-    return io.BytesIO(_jpeg(canvas, 88))
+    return io.BytesIO(_jpeg(canvas, 94))
+
+
+def export_dimensions(width, height, format_name):
+    ratio = {"square": (1, 1), "portrait": (3, 4), "story": (9, 16)}[format_name]
+    unit = math.ceil(max(width / ratio[0], height / ratio[1]))
+    dimensions = (ratio[0] * unit, ratio[1] * unit)
+    if dimensions[0] * dimensions[1] > 40_000_000:
+        raise ApiError(422, "export_too_large", "Format ini terlalu besar. Download format asli untuk menjaga seluruh kualitas foto.")
+    return dimensions
 
 
 def _validate_greeting(text):
@@ -58,6 +69,7 @@ def _validate_greeting(text):
 def create_greeting(owner, result_id, text, expected_revision):
     greeting = _validate_greeting(text)
     with transaction.atomic():
+        get_user_model().objects.select_for_update().get(pk=owner.pk)
         try:
             parent = ResultVersion.objects.select_for_update(of=("self",)).select_related("project", "generation_root").get(
                 id=result_id, project__owner=owner, project__state=Project.State.ACTIVE,
@@ -66,6 +78,7 @@ def create_greeting(owner, result_id, text, expected_revision):
         except ResultVersion.DoesNotExist as error:
             raise ApiError(404, "not_found", "Hasilnya nggak ketemu. Coba buka lagi dari Foto saya.") from error
         project = get_owned_project(owner, parent.project_id, lock=True)
+        authorized_root(parent, owner)
         if project.revision != expected_revision:
             raise ApiError(409, "stale_revision", "Proyekmu berubah di tab lain. Muat ulang supaya kamu pakai versi terbaru, ya.", {"current_revision": project.revision})
         root = parent.generation_root or parent
@@ -96,8 +109,6 @@ def create_greeting(owner, result_id, text, expected_revision):
         master_bytes = _jpeg(image, 94)
         preview = image.copy()
         preview.thumbnail((768, 768), Image.Resampling.LANCZOS)
-        mark = ImageDraw.Draw(preview, "RGBA")
-        mark.text((16, preview.height - 36), "MomenRia · PRATINJAU", font=_font(20), fill=(255, 255, 255, 220), stroke_width=2, stroke_fill=(0, 0, 0, 150))
         preview_bytes = _jpeg(preview, 88)
         result = ResultVersion.objects.create(
             project=project, parent=parent, generation_root=root, source_snapshot=parent.source_snapshot,

@@ -467,18 +467,18 @@ paths:
         "404": {$ref: '#/components/responses/NotFound'}
   /results/{result_id}/preview:
     get:
-      summary: Stream owner-only watermarked preview
+      summary: Stream authorized clean thumbnail or full-quality export
       parameters:
         - {$ref: '#/components/parameters/ResultId'}
         - name: download
           in: query
           required: false
-          description: Set to 1 for a named JPEG attachment. Ownership and expiry checks are identical to inline preview; no payment is required.
+          description: Set to 1 for a full-quality master attachment. All routes require an unrevoked root grant, ownership and unexpired media; downloads never create a new payment.
           schema: {type: string, enum: ["1"]}
         - name: format
           in: query
           required: false
-          description: Original preview or a padded canvas (square 768×768, portrait 576×768, story 432×768). Preserves the complete watermarked preview without cropping or upscaling its pixels. Does not generate a new result or extend retention.
+          description: An explicit format uses the full-resolution master. Square 1:1, portrait 3:4 and story 9:16 add padding at native resolution without cropping or upscaling. Canvases over 40 million pixels are rejected; original downloads retain exact master bytes. No new result or retention extension.
           schema: {type: string, enum: [original, square, portrait, story], default: original}
       responses:
         "200": {description: JPEG preview, content: {image/jpeg: {schema: {type: string, format: binary}}}}

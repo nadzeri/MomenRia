@@ -292,6 +292,56 @@ class ProcessingFlowTests(TestCase):
         self.assertEqual(order.job.state, "cancelled")
         self.assertEqual(order.job.budget_reservation.state, "released")
 
+    def test_preview_thumbnail_and_greeting_have_no_brand_watermark(self):
+        from .worker import _preview
+        flat = Image.new("RGB", (2048, 1536), (96, 96, 96))
+        self.assertEqual(_preview(flat).getextrema(), ((96, 96), (96, 96), (96, 96)))
+        self.prepare()
+        job, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "clean-result")
+        with patch("processing.worker._generate", return_value=(flat, True, "fake-test", "")):
+            run_job(claim_job())
+        job.refresh_from_db()
+        self.project.refresh_from_db()
+        greeting = create_greeting(self.user, job.result_id, "", self.project.revision)
+        preview = greeting.media.get(kind=MediaAsset.Kind.PREVIEW)
+        with preview.file.open("rb") as file, Image.open(file) as image:
+            self.assertEqual(image.getextrema(), ((96, 96), (96, 96), (96, 96)))
+
+    def test_free_original_download_and_compatibility_download_match_master_bytes(self):
+        self.prepare()
+        job, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "full-download")
+        run_job(claim_job())
+        job.refresh_from_db()
+        master = job.result.media.get(kind=MediaAsset.Kind.MASTER)
+        self.client.force_login(self.user)
+        for suffix in ("master", "preview?download=1"):
+            response = self.client.get(f"/api/v1/results/{job.result_id}/{suffix}")
+            self.assertEqual(response.status_code, 200)
+            data = b"".join(response.streaming_content)
+            self.assertEqual(hashlib.sha256(data).hexdigest(), master.sha256)
+            self.assertEqual(Image.open(io.BytesIO(data)).size, (2048, 1536))
+
+    def test_correction_and_greeting_download_inherit_root_access_and_revocation(self):
+        from commerce.models import Entitlement
+        self.prepare()
+        job, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "root-access")
+        run_job(claim_job())
+        job.refresh_from_db()
+        self.project.refresh_from_db()
+        correction, _ = admit_job(self.user, self.project.id, "correction", self.project.revision, "derived-access", parent_result_id=job.result_id, target_slot_id=self.slots[0].id, correction_action="enhance")
+        run_job(claim_job())
+        correction.refresh_from_db()
+        self.project.refresh_from_db()
+        greeting = create_greeting(self.user, correction.result_id, "Selamat", self.project.revision)
+        self.client.force_login(self.user)
+        for result_id in (job.result_id, correction.result_id, greeting.id):
+            self.assertEqual(self.client.get(f"/api/v1/results/{result_id}/master").status_code, 200)
+        Entitlement.objects.filter(result_id_snapshot=job.result_id).update(revoked_at=timezone.now())
+        for result_id in (job.result_id, correction.result_id, greeting.id):
+            for suffix in ("master", "preview", "preview?download=1", "preview?download=1&format=story"):
+                self.assertIn(self.client.get(f"/api/v1/results/{result_id}/{suffix}").status_code, (403, 404))
+
+
 
 
 
@@ -855,7 +905,7 @@ class ProcessingFlowTests(TestCase):
         job.refresh_from_db()
         self.client.force_login(self.user)
         original_hashes = list(job.result.media.values_list("sha256", flat=True))
-        for name, size in {"square": (768, 768), "portrait": (576, 768), "story": (432, 768)}.items():
+        for name, size in {"square": (2048, 2048), "portrait": (2049, 2732), "story": (2052, 3648)}.items():
             url = f"/api/v1/results/{job.result_id}/preview?download=1&format={name}"
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
@@ -885,6 +935,9 @@ class ProcessingFlowTests(TestCase):
             self.assertGreater(min(image.getpixel((45, 65))), 225)
         preview = job.result.media.get(kind=MediaAsset.Kind.PREVIEW)
         MediaAsset.objects.filter(id=preview.id).update(deleted_at=timezone.now())
+        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/preview").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/preview?format=square").status_code, 200)
+        MediaAsset.objects.filter(result=job.result, kind=MediaAsset.Kind.MASTER).update(deleted_at=timezone.now())
         self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/preview?format=square").status_code, 404)
 
     def test_editing_greeting_uses_clean_generation_image(self):
