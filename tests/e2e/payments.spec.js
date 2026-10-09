@@ -1,6 +1,42 @@
 const { test, expect } = require('@playwright/test');
 const path = require('node:path');
 
+test('mocked QRIS stays on-site and renders uncertain, queued, failed and refunded states', async ({ page }, testInfo) => {
+  await page.goto('/accounts/login/');
+  await page.locator('[name="login"]').fill(`paymentstates-${testInfo.project.name}@example.com`);
+  await page.locator('[name="password"]').fill('Portrait-test-2026!');
+  await page.getByRole('button', { name: 'Masuk', exact: true }).click();
+  const id = 'b374c06e-bec7-4343-9485-0f5dc808f54c';
+  const qr = 'https://api.sandbox.midtrans.com/v2/qris/ui-test/qr-code';
+  let order = { id, merchant_reference: 'MR-UI-SIMULATION', purpose: 'generation', amount: 9900, currency: 'IDR', project_id: null, result_id: null, download_url: null, refunds: [], payment_state: 'pending', job_state: 'awaiting_payment', fulfillment_state: 'unavailable', expires_at: new Date(Date.now()+900000).toISOString(), payment_instructions: { kind: 'qris', qr_url: qr, message: 'Instruksi QR simulasi, bukan tagihan.' } };
+  await page.route(`**/api/v1/orders/${id}`, route => route.fulfill({ json: order }));
+  await page.route(qr, route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect width="240" height="240" fill="white"/><rect x="20" y="20" width="200" height="200" fill="none" stroke="black"/><text x="120" y="120" text-anchor="middle">QR SIMULASI</text></svg>' }));
+  await page.route('**/', async route => {
+    const response = await route.fetch(), headers = response.headers();
+    if (headers['content-security-policy']) headers['content-security-policy'] = headers['content-security-policy'].replace(/img-src[^;]+/, value => value+' https://api.sandbox.midtrans.com');
+    await route.fulfill({ response, headers });
+  });
+  await page.goto(`/#/orders/${id}`);
+  await page.reload();
+  await expect(page.locator('#orders-list')).toContainText('Menunggu pembayaran');
+  await expect(page.getByRole('img', { name: 'Kode QRIS pembayaran MR-UI-SIMULATION' })).toHaveAttribute('src', qr);
+  await expect.poll(() => page.locator('.payment-qr').evaluate(image => image.complete && image.naturalWidth===240)).toBe(true);
+  await expect(page.getByRole('button', { name: 'Simulasikan pembayaran' })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('mocked-qris.png'), fullPage: true });
+  for (const [payment, job, refunds, label] of [
+    ['uncertain','awaiting_payment',[],'Status pembayaran belum pasti'],
+    ['paid','queued',[],'Dalam antrean'],
+    ['paid','failed',[{ state:'processing', amount_idr:9900 }],'Sedang diproses'],
+    ['paid','cancelled',[{ state:'succeeded', amount_idr:9900 }],'Dana dikembalikan'],
+  ]) {
+    order = { ...order, payment_state:payment, job_state:job, refunds };
+    await page.reload();
+    await expect(page.locator('#orders-list')).toContainText(label);
+    expect(new URL(page.url()).hostname).toBe('127.0.0.1');
+    if(payment==='paid') await expect(page.locator('.payment-qr')).toHaveCount(0);
+  }
+});
+
 test('three lifetime free pictures, one paid creation, recovery and order-linked support', async ({ page, browser }, testInfo) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -30,6 +66,16 @@ test('three lifetime free pictures, one paid creation, recovery and order-linked
   }
   const projectId = page.url().split('/').at(-1);
   await page.getByRole('link', { name: 'Buat versi baru' }).click();
+  await page.route('**/api/v1/session', async route => {
+    const response = await route.fetch(), session = await response.json();
+    await route.fulfill({ response, json: { ...session, pricing: { ...session.pricing, checkout_enabled: false } } });
+  });
+  await page.reload();
+  await expect(page.locator('[data-generate]')).toBeDisabled();
+  await expect(page.locator('.generation-hint')).toContainText('Pembayaran foto baru sedang dijeda');
+  await expect(page.getByRole('link', { name: 'Pesanan', exact: true })).toBeVisible();
+  await page.unroute('**/api/v1/session');
+  await page.reload();
   await expect(page.locator('[data-generate]')).toContainText('Lanjut bayar Rp9.900');
   await page.locator('[data-generate]').click();
   await expect(page.getByRole('dialog')).toContainText('Rp9.900');

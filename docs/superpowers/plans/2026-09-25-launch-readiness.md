@@ -1,3 +1,5 @@
+> Historical scope/evidence. Pricing, quota, watermark and payment policies are superseded by [the October Midtrans/pricing plan](2026-10-10-midtrans-website-requirements.md).
+
 # MomenRia Launch Readiness Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.

@@ -42,6 +42,13 @@ def project_json(project):
     def output(item):
         return item.region_snapshot.get("output") if isinstance(item.region_snapshot, dict) else None
 
+    def accessible(item):
+        try:
+            authorized_root(item, project.owner)
+            return True
+        except ApiError:
+            return False
+
     return {
         "id": str(project.id), "template_id": str(project.template_id), "offer_id": str(project.offer_id),
         "created_at": project.created_at.isoformat(), "updated_at": project.updated_at.isoformat(),
@@ -53,7 +60,7 @@ def project_json(project):
         "state": project.state, "revision": project.revision, "selected_result_id": str(project.selected_result_id) if project.selected_result_id else None,
         "assignments": assignments,
         "sources": [{"id": str(item.id), "status": item.status, "validation_code": item.validation_code, "width": item.width, "height": item.height, "expires_at": item.expires_at.isoformat(), "thumbnail_url": f"/api/v1/sources/{item.id}/thumbnail" if item.thumbnail else None} for item in sources],
-        "results": [{"id": str(item.id), "number": item.number, "kind": item.kind, "status": item.status, "greeting": item.greeting, "synthetic": item.synthetic, "created_at": item.created_at.isoformat(), "expires_at": item.expires_at.isoformat(), "references": references(item), "output": output(item), "feedback": latest_feedback(item)} for item in project.results.all()],
+        "results": [{"id": str(item.id), "number": item.number, "kind": item.kind, "status": item.status, "access_available": accessible(item), "greeting": item.greeting, "synthetic": item.synthetic, "created_at": item.created_at.isoformat(), "expires_at": item.expires_at.isoformat(), "references": references(item), "output": output(item), "feedback": latest_feedback(item)} for item in project.results.all()],
         "jobs": [job_json(item) for item in project.jobs.order_by("-created_at")[:5]],
     }
 

@@ -1,3 +1,5 @@
+> Historical scope/evidence. Pricing, quota, watermark and payment policies are superseded by [the October Midtrans/pricing plan](superpowers/plans/2026-10-10-midtrans-website-requirements.md).
+
 # MomenRia competitive review
 
 26 September 2026. Scope: private family portraits made from separate photographs, with Indonesian families as the primary audience.

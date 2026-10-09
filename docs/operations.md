@@ -27,6 +27,17 @@ The web service needs write access to the result volume because greeting version
 
 Rollback application image only while schema remains compatible. Do not restore an older database over new orders. Reconcile payment provider records before reopening admissions.
 
+### Three-free-picture cutover
+
+1. Pause new paid checkout with `PAYMENT_CHECKOUT_ENABLED=false` and disable new admissions. Preserve configured payment reconciliation, history, deletion and authorized downloads. Back up database/media and deletion tombstones before migrating.
+2. Drain legacy creation/correction jobs. Reconcile pending or uncertain historical download payments, including locally cancelled/expired/failed orders whose provider outcome is unverified. The audit refuses `--apply` while these records remain unresolved.
+3. Apply current additive migrations on an isolated restored copy first. Run `python manage.py reconcile_pricing_history` without `--apply`; inspect every owner/result report. Real successful historical creations count even when deleted/expired; synthetic results, corrections and greetings do not. Incomplete history remains blocked for operator resolution. Existing receipts and activated offers keep their amounts.
+4. Confirm the dry-run against retained original master files. Missing/changed masters are reported and, on apply, quarantined with support resolution. Revoked/refunded, expired or deleted pictures are never restored. Clean previews are rebuilt from verified masters; original bytes remain unchanged.
+5. An active staff operator may apply the reviewed migration using `python manage.py reconcile_pricing_history --apply --operator staff@example.com --reason 'Approved reviewed historical pricing cutover'`, substituting the actual operator and reason. This is a production data change; do not run it merely to prepare review evidence. Re-run the dry-run and compare owner quotas, master hashes, grants, quarantines and payment reconciliation.
+6. Verify the active generation offer is IDR9,900, policy versions and merchant configuration are approved, and real AI/privacy/quality/economics/infrastructure gates are closed. Start maintenance/reconciliation before workers; reopen admissions and new checkout last.
+
+Rollback pauses new purchases and, if needed, new creations. Keep migrated lifetime usage, stored order amounts and grants; retain reconciliation and refund processing for money in flight. Do not undo quota history or restore an old database over new orders. Review [Midtrans release evidence](midtrans-review-checklist.md) before activation.
+
 ## AI uncertainty
 
 Timeout after possible dispatch is `uncertain`, not failed. Keep the job and cost reservation locked. Do not retry until provider request lookup proves non-execution or operator records resolution. Never route customer photos directly around 9Router.

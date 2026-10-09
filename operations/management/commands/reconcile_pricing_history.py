@@ -32,8 +32,9 @@ class Command(BaseCommand):
             raise CommandError("--apply requires --operator (active staff email) and --reason")
         legacy_active = Job.objects.filter(state__in=Job.ACTIVE_STATES, generation_order__isnull=True).filter(Q(allowance__isnull=True) | Q(allowance__trial_slot__isnull=True))
         pending = Order.objects.filter(purpose="result_download", payment_state__in=("creating", "pending", "uncertain"))
-        self.stdout.write(f"legacy_active_jobs={legacy_active.count()} legacy_pending_orders={pending.count()}")
-        if applying and (legacy_active.exists() or pending.exists()):
+        unknown_terminal = sum(order.provider_payload.get("transaction_status") not in {"deny", "cancel", "expire", "refund"} for order in Order.objects.filter(purpose="result_download", payment_state__in=("cancelled", "expired", "failed")).iterator())
+        self.stdout.write(f"legacy_active_jobs={legacy_active.count()} legacy_pending_orders={pending.count()} legacy_unverified_terminal_orders={unknown_terminal}")
+        if applying and (legacy_active.exists() or pending.exists() or unknown_terminal):
             raise CommandError("Drain or reconcile legacy jobs and pending download payments before applying")
         for owner in get_user_model().objects.order_by("id").iterator():
             try:

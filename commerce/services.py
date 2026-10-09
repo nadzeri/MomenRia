@@ -374,8 +374,19 @@ def request_refund(operator, order_id, reason, idempotency_key):
         order = lock_order(order)
         existing = order.refunds.exclude(state=Refund.State.FAILED).first()
         if existing:
+            if existing.idempotency_key == idempotency_key and existing.request_hash != request_hash:
+                raise ApiError(409, "idempotency_conflict", "Kunci idempotensi sudah dipakai untuk permintaan berbeda.")
             return existing, False
-        refund = Refund.objects.create(order=order, amount_idr=order.amount_idr, reason=reason, idempotency_key=idempotency_key, request_hash=request_hash, requested_by=operator)
+        try:
+            with transaction.atomic():
+                refund = Refund.objects.create(order=order, amount_idr=order.amount_idr, reason=reason, idempotency_key=idempotency_key, request_hash=request_hash, requested_by=operator)
+        except IntegrityError:
+            existing = Refund.objects.filter(idempotency_key=idempotency_key).first()
+            if not existing:
+                raise
+            if existing.request_hash != request_hash:
+                raise ApiError(409, "idempotency_conflict", "Kunci idempotensi sudah dipakai untuk permintaan berbeda.")
+            return existing, False
         AuditEvent.objects.create(actor=operator, action="refund_requested", object_type="order", object_id=order.id, reason=reason, metadata={"refund_id": str(refund.id), "amount_idr": order.amount_idr})
         OutboxEvent.objects.create(topic="refund.requested", payload={"refund_id": str(refund.id), "order_id": str(order.id)})
         emit_analytics("refund_recorded", owner=order.owner, project=order.project, result=order.result, order=order, dimensions={"refund_id": str(refund.id)})

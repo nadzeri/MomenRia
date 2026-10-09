@@ -2,6 +2,7 @@ const { defineConfig, devices } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests/e2e', testMatch: 'payments.spec.js', workers: 1, fullyParallel: false,
+  outputDir: './test-results-payments',
   timeout: 120000, expect: { timeout: 10000 }, reporter: [['list']],
   use: { trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [

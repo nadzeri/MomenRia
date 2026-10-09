@@ -147,6 +147,9 @@ class ProcessingFlowTests(TestCase):
             replay, created = create_generation_order(self.user, self.project.id, data, "paid-generation")
             self.assertFalse(created)
             self.assertEqual(replay.id, order.id)
+            with self.assertRaises(ApiError) as error:
+                create_generation_order(self.user, self.project.id, data, "new-purchase-paused")
+            self.assertEqual(error.exception.status, 503)
         with self.assertRaises(ApiError) as error:
             assign_source(self.user, self.project.id, self.slots[0].id, self.project.assignments.first().source_id, self.project.revision)
         self.assertEqual(error.exception.code, "project_frozen")
@@ -214,7 +217,20 @@ class ProcessingFlowTests(TestCase):
         self.assertEqual(Entitlement.objects.filter(order=order).count(), 1)
         self.assertIsNone(claim_job())
         self.client.force_login(self.user)
-        self.assertEqual(self.client.get(f"/api/v1/results/{order.result_id}/master").status_code, 200)
+        for suffix in ("master", "preview?download=1"):
+            response = self.client.get(f"/api/v1/results/{order.result_id}/{suffix}")
+            self.assertEqual(response.status_code, 200)
+            content = b"".join(response.streaming_content)
+            self.assertEqual(hashlib.sha256(content).hexdigest(), order.result_sha256)
+            self.assertEqual(Image.open(io.BytesIO(content)).size, (order.result_width, order.result_height))
+        self.project.refresh_from_db()
+        correction, _ = admit_job(self.user, self.project.id, "correction", self.project.revision, "paid-free-correction", parent_result_id=order.result_id, target_slot_id=self.slots[0].id, correction_action="enhance")
+        self.assertIsNone(correction.allowance_id)
+        self.assertTrue(run_job(claim_job()))
+        correction.refresh_from_db()
+        self.assertEqual(correction.result.generation_root_id, order.result_id)
+        self.assertEqual(self.project.orders.count(), 1)
+        self.assertEqual(self.client.get("/api/v1/session").json()["pricing"]["free_remaining"], 0)
 
     def test_worker_rejects_creation_without_valid_trial_reservation(self):
         from .models import AllowanceReservation
@@ -353,6 +369,8 @@ class ProcessingFlowTests(TestCase):
         for result_id in (job.result_id, correction.result_id, greeting.id):
             self.assertEqual(self.client.get(f"/api/v1/results/{result_id}/master").status_code, 200)
         Entitlement.objects.filter(result_id_snapshot=job.result_id).update(revoked_at=timezone.now())
+        payload = self.client.get(f"/api/v1/projects/{self.project.id}").json()
+        self.assertFalse(any(item["access_available"] for item in payload["results"]))
         for result_id in (job.result_id, correction.result_id, greeting.id):
             for suffix in ("master", "preview", "preview?download=1", "preview?download=1&format=story"):
                 self.assertIn(self.client.get(f"/api/v1/results/{result_id}/{suffix}").status_code, (403, 404))
@@ -1316,6 +1334,64 @@ class ProcessingFlowTests(TestCase):
 
 @override_settings(AI_GATEWAY_MODE="fake", ADMISSION_ENABLED=True, DAILY_BUDGET_IDR=10000, ALLOW_UNBOUNDED_TEST_BUDGET=False, STORAGE_MIN_FREE_BYTES=0, STORAGE_MAX_USED_PERCENT=100)
 class ConcurrentAdmissionTests(TransactionTestCase):
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_concurrent_purchase_and_settlement_prepare_and_queue_once(self):
+        from commerce.services import apply_provider_status, create_generation_order
+        from operations.models import OutboxEvent
+        from .models import Allowance
+        from .quota import initialize_trial_allowances
+        offer = Offer.objects.create(version=Offer.objects.order_by("-version").first().version + 1, name="One picture", purchase_unit="generation", price_idr=9900, active=True)
+        initialize_trial_allowances(self.user)
+        Allowance.objects.filter(owner=self.user).update(consumed_at=timezone.now())
+        data = {"offer_id": str(offer.id), "expected_revision": self.project.revision, "terms_version": "2026-10-10", "refund_policy_version": "2026-10-10", "policies_accepted": True}
+        outcomes = []
+        barrier = threading.Barrier(2)
+
+        def purchase():
+            close_old_connections()
+            try:
+                barrier.wait(timeout=5)
+                order, created = create_generation_order(self.user, self.project.id, data, "concurrent-purchase")
+                outcomes.append((order.id, created))
+            finally:
+                connections.close_all()
+
+        threads = [threading.Thread(target=purchase) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+            self.assertFalse(thread.is_alive())
+        self.assertEqual(len(outcomes), 2)
+        self.assertEqual(len({item[0] for item in outcomes}), 1)
+        self.assertEqual(sum(item[1] for item in outcomes), 1)
+        order = Order.objects.get(pk=outcomes[0][0])
+        barrier = threading.Barrier(3)
+        errors = []
+        status = {"order_id": order.merchant_reference, "payment_type": "qris", "transaction_status": "settlement", "status_code": "200", "currency": "IDR", "fraud_status": "accept", "gross_amount": "9900.00", "transaction_id": "TX-RACE"}
+
+        def notify(state):
+            close_old_connections()
+            try:
+                barrier.wait(timeout=5)
+                apply_provider_status(Order.objects.get(pk=order.pk), {**status, "transaction_status": state, "status_code": "201" if state == "pending" else "200"})
+            except Exception as error:
+                errors.append(error)
+            finally:
+                connections.close_all()
+
+        threads = [threading.Thread(target=notify, args=(state,)) for state in ("pending", "settlement", "settlement")]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+            self.assertFalse(thread.is_alive())
+        self.assertEqual(errors, [])
+        order.refresh_from_db()
+        self.assertEqual(order.payment_state, "paid")
+        self.assertEqual(order.job.state, "queued")
+        self.assertEqual(OutboxEvent.objects.filter(topic="job.queued", payload__order_id=str(order.id)).count(), 1)
+
     def setUp(self):
         if connection.vendor != "postgresql":
             self.skipTest("Concurrency proof requires PostgreSQL")

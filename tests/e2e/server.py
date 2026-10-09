@@ -1,5 +1,7 @@
 import os
 import argparse
+import hashlib
+import re
 from pathlib import Path
 import signal
 import subprocess
@@ -40,7 +42,12 @@ def main():
         call_command("migrate", verbosity=0)
         call_command("seed_catalog", test_publish=True, verbosity=0)
         call_command("prepare_character_templates", model="fake-test", gateway_path="/images/generations", portrait_max_cost_idr=1500, sheet_max_cost_idr=500, generated_sheets=True, test_publish=True, verbosity=0)
-        for name in ("desktop", "mobile", "outsider", "graduate-desktop", "graduate-mobile", "character-desktop", "character-mobile", "competitive-desktop", "competitive-mobile", "payments-desktop", "payments-mobile"):
+        names = ["desktop", "mobile", "outsider", "graduate-desktop", "graduate-mobile", "character-desktop", "character-mobile", "competitive-desktop", "competitive-mobile", "payments-desktop", "payments-mobile", "paymentstates-desktop", "paymentstates-mobile"]
+        titles = re.findall(r"test\('([^']+)',", (ROOT / "tests/e2e/launch.spec.js").read_text())
+        for title in titles:
+            suffix = hashlib.sha256(title.encode()).hexdigest()[:10]
+            names.extend(f"launch-{surface}-{suffix}" for surface in ("desktop", "mobile"))
+        for name in names:
             user = User.objects.create_user(f"{name}@example.com", "Portrait-test-2026!", email_verified=True)
             EmailAddress.objects.create(user=user, email=user.email, primary=True, verified=True)
         fixtures = ROOT / "tests/e2e/generated"

@@ -104,3 +104,21 @@ class HistoricalPricingTests(TestCase):
         with self.assertRaises(Exception) as error:
             export_dimensions(10000, 10000, "story")
         self.assertEqual(error.exception.code, "export_too_large")
+
+    def test_partial_trial_initialization_requires_audit(self):
+        Allowance.objects.create(owner=self.owner, kind="creation", policy_version="three-free-v1", trial_slot=1)
+        self.assertTrue(pricing_for(self.owner)["audit_required"])
+        self.assertEqual(Allowance.objects.filter(owner=self.owner).count(), 1)
+
+    def test_history_apply_refuses_unverified_local_payment_expiry(self):
+        from commerce.models import Order
+        root = self.result()
+        self.asset(root, "master", "blue")
+        offer = Offer.objects.create(version=10, name="Legacy", price_idr=19900)
+        order = Order.objects.create(owner=self.owner, project=self.project, result=root, offer=offer, merchant_reference="MR-UNKNOWN-EXPIRED", payment_state="expired", amount_idr=19900, result_id_snapshot=root.id, result_sha256="a" * 64, result_width=2048, result_height=1536, expires_at=timezone.now() - timedelta(days=1))
+        with self.assertRaisesMessage(CommandError, "Drain or reconcile legacy jobs"):
+            call_command("reconcile_pricing_history", apply=True, operator=self.operator.email, reason="Reviewed cohort", stdout=io.StringIO())
+        order.provider_payload = {"transaction_status": "expire"}
+        order.save()
+        call_command("reconcile_pricing_history", apply=True, operator=self.operator.email, reason="Provider confirms expiry", stdout=io.StringIO())
+        self.assertTrue(Entitlement.objects.filter(result=root, revoked_at__isnull=True).exists())

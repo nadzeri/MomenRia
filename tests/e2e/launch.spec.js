@@ -1,10 +1,12 @@
 const { test, expect } = require('@playwright/test');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 
 const password = 'Portrait-test-2026!';
-let browserErrors;
+let browserErrors, scenarioOwner;
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
+  scenarioOwner=`launch-${testInfo.project.name}-${createHash('sha256').update(testInfo.title).digest('hex').slice(0,10)}`;
   browserErrors = [];
   page.on('pageerror', error => browserErrors.push(error.message));
 });
@@ -21,6 +23,7 @@ async function noOverflow(page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 }
 async function login(page, name) {
+  if (['desktop','mobile'].includes(name)) name=scenarioOwner;
   await page.goto('/accounts/login/');
   await page.locator('[name="login"]').fill(`${name}@example.com`);
   await page.locator('[name="password"]').fill(password);
@@ -68,7 +71,7 @@ test('content pages, private empty library, unknown routes and payment exclusion
   const routes = [
     ['guide', 'Biar hasilnya oke, mulai dari fotonya.'], ['privacy', 'Kebijakan Privasi'],
     ['terms', 'Syarat dan Ketentuan'], ['support', 'Butuh bantuan? Cerita, yuk.'],
-    ['projects', 'Foto saya'], ['missing-page', 'Halaman tidak ditemukan'], ['orders', 'Pembayaran belum tersedia'],
+    ['projects', 'Foto saya'], ['missing-page', 'Halaman tidak ditemukan'], ['orders', 'Pesanan'],
   ];
   for (const [route, heading] of routes) {
     await page.goto(`/#/${route}`);

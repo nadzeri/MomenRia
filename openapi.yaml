@@ -70,6 +70,7 @@ components:
             properties:
               id: {type: string, format: uuid}
               created_at: {type: string, format: date-time}
+              access_available: {type: boolean, description: Live root authorization; false for revoked, unavailable or expired results}
               feedback:
                 type: array
                 description: Latest feedback for each slot and the global null slot on this exact result version. New versions start unreviewed.

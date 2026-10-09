@@ -24,7 +24,7 @@ The user confirmed on 9 October 2026 that the interface should prepare for real 
 
 ## Capabilities and Constraints
 
-Ownership, verified email, consent, scoped staff access, immutable result versions, expiry and processing admission remain enforced. Preview downloads are free, watermarked and limited to 768 px. Payments remain disabled for this release. Synthetic results and shared demos must be visibly labeled. Provider privacy, provider deletion evidence, real likeness benchmarks and the operating team's response arrangements remain release questions requiring evidence.
+Ownership, verified email, consent, scoped staff access, immutable result versions, expiry and processing admission remain enforced. Each account receives three lifetime successfully generated new pictures, then pays IDR9,900 per new picture before generation. Corrections to the same picture, greetings and downloads stay free. All free/paid downloads use the full-resolution master without a product watermark; display thumbnails remain lightweight. New paid checkout is paused until Midtrans and operational release gates close. Synthetic results and shared demos must be visibly labeled. Provider privacy, provider deletion evidence, real likeness benchmarks and the operating team's response arrangements remain release questions requiring evidence.
 
 ## Brand Commitments
 

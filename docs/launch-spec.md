@@ -1,3 +1,5 @@
+> Historical scope/evidence. Pricing, quota, watermark and payment policies are superseded by [the October Midtrans/pricing plan](superpowers/plans/2026-10-10-midtrans-website-requirements.md).
+
 # MomenRia launch scope — 25 September 2026
 
 Ship a usable Bahasa Indonesia family portrait beta without payments. Preserve the existing Django ownership, immutable template/result versions, cost controls, private files, and durable worker. Payment integration, checkout, paid conversion and merchant onboarding are outside this release.

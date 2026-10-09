@@ -10,7 +10,7 @@
 
 **Spec:** Requirements R1–R5 from the five supplied screenshots, pricing requirements P1–P5 from the owner's follow-up below, the supplied `Midtrans TNC Template Jan 13 2017.pdf`, current code and official Midtrans documentation checked on 10 October 2026.
 
-**Status:** Planning only. No application code, settings, database, deployment or merchant account has been changed. The owner supplied the business name, contact details, domain and price below; remaining policy decisions are listed explicitly.
+**Status:** Implemented locally on `codex/midtrans-pricing` after the owner's implementation request. Tasks 1–7 have local verification; final review and evidence are recorded in [the Midtrans checklist](../../midtrans-review-checklist.md). No production deployment, customer-data migration or live charge was performed. External release gates remain open. Requirement-gap descriptions below preserve the planning baseline.
 
 ## Global constraints
 
@@ -364,7 +364,7 @@ Midtrans's [webhook guidance](https://docs.midtrans.com/docs/https-notification-
 - [ ] Activate the coherent pricing release only after merchant/channel approval, refund readiness and existing AI/privacy/quality/infrastructure gates. A controlled live charge/refund test is a separately authorized release action.
 - [ ] Roll back by pausing new paid and, if needed, new free generation while retaining quota history, order visibility, pending-payment/refund reconciliation and authorized downloads. Do not revert to unlimited free generation or disable payment processing with money in flight.
 
-Verification commands for implementation, not run during this planning task:
+Verification commands for implementation (local evidence is recorded in the checklist):
 
 ```bash
 .venv/bin/python manage.py test momenria accounts catalog commerce processing projects operations --noinput
@@ -394,4 +394,4 @@ Run these against isolated test databases/media with the project's documented te
 
 No subscriptions, credit packs, general-purpose wallet, carts, discounts, multi-currency support, physical shipping/returns, extra payment methods, CMS, new support system or automatic refund API is needed. The only new purchase unit is one generated picture after the free allowance.
 
-This plan is based on repository inspection, all five screenshots, visual review of all ten PDF pages and linked official documentation. It is not a deployed-site audit or legal opinion. No application tests or live transactions were run for this documentation-only task. `RTK.md`, referenced by the supplied instructions, was not found in the workspace or checked ancestor/Codex locations.
+This plan is based on repository inspection, all five screenshots, visual review of all ten PDF pages and linked official documentation. It is not a deployed-site audit or legal opinion. Subsequent implementation tests use isolated databases/media and fake providers; no live transactions were run. `RTK.md`, referenced by the supplied instructions, was not found in the workspace or checked ancestor/Codex locations. Unchecked external steps require merchant/owner evidence before release.

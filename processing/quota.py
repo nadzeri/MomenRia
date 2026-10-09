@@ -23,7 +23,7 @@ def initialize_trial_allowances(owner):
         if len(slots) == FREE_LIMIT:
             return slots
         history = Job.objects.filter(owner=owner, operation=Job.Operation.CREATION, generation_order__isnull=True).filter(Q(allowance__isnull=True) | Q(allowance__trial_slot__isnull=True))
-        if history.filter(state__in=Job.ACTIVE_STATES).exists() or history.filter(state=Job.State.READY, result__isnull=True).exclude(allowance__consumed_at__isnull=False).exists():
+        if slots or history.filter(state__in=Job.ACTIVE_STATES).exists() or history.filter(state=Job.State.READY, result__isnull=True).exclude(allowance__consumed_at__isnull=False).exists():
             raise ApiError(409, "quota_audit_required", "Riwayat jatah foto perlu diperiksa. Hubungi Bantuan sebelum membuat foto baru.")
         used = ResultVersion.objects.filter(project__owner=owner, kind="creation", synthetic=False, status__in=("ready", "expired", "deleted")).count()
         consumed = Allowance.objects.filter(owner=owner, kind="creation", trial_slot__isnull=True, consumed_at__isnull=False)

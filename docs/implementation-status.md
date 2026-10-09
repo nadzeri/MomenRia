@@ -1,6 +1,6 @@
 # MomenRia implementation status
 
-Status date: 2026-09-25. `Implemented` means code and local/container evidence exist. It does not mean production release is approved. Current scope excludes payments; see `docs/launch-readiness.md`.
+Status date: 2026-10-10. `Implemented` means code and local/container evidence exist. It does not mean production release is approved. Generation billing and full-quality delivery are implemented locally; live activation remains gated; see `docs/launch-readiness.md`.
 
 ## Technical requirements
 
@@ -15,14 +15,14 @@ Status date: 2026-09-25. `Implemented` means code and local/container evidence e
 | TR07 | Implemented | Streamed temporary upload, decoded-byte/MIME/size/pixel/face checks, consent, private atomic storage. |
 | TR08 | Implemented | Admission validates ownership, consent, sources, variant, offer, budget, queue, storage, and freezes inputs. |
 | TR09 | Implemented | PostgreSQL `select_for_update(skip_locked=True)`, committed lease, heartbeat, fencing, and uncertain state. |
-| TR10 | Implemented | Updated 26 September 2026: unlimited creation and correction counts. New jobs need no allowance; legacy allowance records stay intact for history. Per-project concurrency and global resource controls remain. |
+| TR10 | Implemented | Three lifetime successful free creation slots per account, owner-locked reservations and historical real-creation counting; subsequent jobs await one IDR9,900 order. Same-root corrections remain free; capacity and uncertainty controls remain. |
 | TR11 | Partial | Real 9Router adapter authenticated against `cx/gpt-5.5-image`; it sends frozen model/path, template or parent master, ordered references, bounded base64 responses, request identity, and conservative uncertain states. Cost and retry contract still need provider evidence. |
 | TR12 | Partial | Atomic full master then derived preview, hashes, dimensions, expected face-count gate, quarantine states, and disclosed 1448-to-2048 finishing path exist. Likeness/mapping quality still needs D07 benchmark output. |
 | TR13 | Implemented | Each result stores exact source/region snapshot; expired references remain labeled, not silently extended. |
 | TR14 | Implemented | Local deterministic greeting versions, 48-code-point/control/width checks, inherited expiry, separate hashes. |
-| TR15 | Blocked by D04 | Signed Midtrans notification/status validation exists. Real QRIS charge creation stays disabled pending merchant contract. |
-| TR16 | Implemented | Entitlement binds owner, order, result ID, and master hash; repeated exact-version download until expiry. |
-| TR17 | Partial | Idempotent refund record/reconciliation state exists; provider submission needs D04/D11 procedure. |
+| TR15 | Blocked by D04 | Core QRIS stored-price charging, strict instruction URLs, signed notification/authenticated status verification, stable-reference recovery and one-time dispatch exist. Real merchant/channel validation and activation remain gated. |
+| TR16 | Implemented | Explicit trial/payment/legacy root grants authorize clean master and derived downloads until expiry; full refunds revoke future lineage access. Original paid bytes match the stored result hash. |
+| TR17 | Partial | Full-refund deduplication, provider reconciliation and audited staff external-outcome recording exist, protected by MFA/re-auth. Actual dashboard/manual transfer and final remedy policy remain D04/D11 gates. |
 | TR18 | Implemented with test-only exception | Versioned same-origin API, CSRF, schema/body checks and owner scoping. Shared-owner demo mode is rejected in production. |
 | TR19 | Implemented | Access-time expiry plus five-minute source/result/grant/order/deletion/orphan sweep. |
 | TR20 | Blocked by D10 | Backup/restore/tombstone runbook and stale-backup alert exist; independent destination and restore drill remain. |
