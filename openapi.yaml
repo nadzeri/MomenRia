@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MomenRia API
-  version: 0.3.0
+  version: 0.4.0
   description: Same-origin API with private customer accounts and CSRF-protected mutations. Shared-owner PUBLIC_ACCESS mode is test-only and rejected in production. Payments may be disabled while owner-only preview downloads remain available. Operator endpoints require authenticated staff sessions.
 servers:
   - url: /api/v1
@@ -12,6 +12,27 @@ components:
       in: cookie
       name: sessionid
   schemas:
+    Pricing:
+      type: object
+      properties:
+        model: {const: three_free_then_per_picture}
+        free_limit: {type: integer, const: 3}
+        free_used: {type: [integer, "null"]}
+        free_reserved: {type: [integer, "null"]}
+        free_remaining: {type: [integer, "null"]}
+        price_idr: {type: integer, const: 9900}
+        currency: {const: IDR}
+        checkout_enabled: {type: boolean}
+    Order:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        purpose: {enum: [generation, result_download]}
+        job_id: {type: [string, "null"], format: uuid}
+        result_id: {type: [string, "null"], format: uuid}
+        amount: {type: integer, minimum: 1}
+        currency: {const: IDR}
+        download_url: {type: [string, "null"]}
     Error:
       type: object
       required: [code, message, request_id, retryable]

@@ -36,7 +36,9 @@ class Command(BaseCommand):
         publish = options["test_publish"]
         if publish and settings.APP_ENV != "test":
             raise CommandError("--test-publish is allowed only in APP_ENV=test")
-        offer, _ = Offer.objects.get_or_create(version=1, defaults={"name": "Unduhan HD uji", "price_idr": 19900, "active": publish})
+        Offer.objects.get_or_create(version=1, defaults={"name": "Unduhan HD uji", "price_idr": 19900, "active": False})
+        Offer.objects.filter(purchase_unit="result_download").update(active=False)
+        offer = Offer.objects.get(purchase_unit="generation")
         if publish and not offer.active:
             offer.active = True
             offer.save(update_fields=("active", "activated_at"))

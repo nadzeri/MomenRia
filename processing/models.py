@@ -15,12 +15,15 @@ class Allowance(models.Model):
     project = models.ForeignKey("projects.Project", null=True, blank=True, on_delete=models.PROTECT, related_name="allowances")
     kind = models.CharField(max_length=16, choices=Kind.choices)
     policy_version = models.CharField(max_length=40)
+    trial_slot = models.PositiveSmallIntegerField(null=True, blank=True)
     consumed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=("owner", "kind"), condition=Q(kind="creation"), name="processing_one_creation_allowance"),
+            models.UniqueConstraint(fields=("owner", "kind"), condition=Q(kind="creation", trial_slot__isnull=True), name="processing_one_legacy_creation"),
+            models.UniqueConstraint(fields=("owner", "trial_slot"), condition=Q(trial_slot__isnull=False), name="processing_trial_slot_unique"),
+            models.CheckConstraint(condition=Q(trial_slot__isnull=True) | Q(kind="creation", trial_slot__gte=1, trial_slot__lte=3), name="processing_trial_slot_bounds"),
             models.UniqueConstraint(fields=("project", "kind"), condition=Q(kind="correction"), name="processing_one_correction_allowance"),
         ]
 
@@ -32,6 +35,7 @@ class Job(models.Model):
         CHARACTER_SHEET = "character_sheet", "Character sheet"
 
     class State(models.TextChoices):
+        AWAITING_PAYMENT = "awaiting_payment", "Awaiting payment"
         QUEUED = "queued", "Queued"
         DISPATCHING = "dispatching", "Dispatching"
         PROCESSING = "processing", "Processing"
@@ -41,7 +45,7 @@ class Job(models.Model):
         FAILED = "failed", "Failed"
         CANCELLED = "cancelled", "Cancelled"
 
-    ACTIVE_STATES = (State.QUEUED, State.DISPATCHING, State.PROCESSING, State.UNCERTAIN, State.FINALIZING)
+    ACTIVE_STATES = (State.AWAITING_PAYMENT, State.QUEUED, State.DISPATCHING, State.PROCESSING, State.UNCERTAIN, State.FINALIZING)
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="jobs")
@@ -67,7 +71,7 @@ class Job(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=("project",), condition=Q(state__in=("queued", "dispatching", "processing", "uncertain", "finalizing")), name="processing_one_active_job_per_project"),
+            models.UniqueConstraint(fields=("project",), condition=Q(state__in=("awaiting_payment", "queued", "dispatching", "processing", "uncertain", "finalizing")), name="processing_one_active_job_per_project"),
             models.CheckConstraint(condition=Q(operation="character_sheet", allowance__isnull=True, character_sheet__isnull=False, result__isnull=True) | Q(operation__in=("creation", "correction"), character_sheet__isnull=True), name="processing_operation_allowance_sheet"),
         ]
         indexes = [models.Index(fields=("state", "next_run_at")), models.Index(fields=("leased_until",))]

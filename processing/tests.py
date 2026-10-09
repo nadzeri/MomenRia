@@ -31,6 +31,18 @@ from .services import admit_job
 from .worker import claim_job, run_job
 
 
+class TrialSlotModelTests(TestCase):
+    def test_only_three_slots_can_be_granted(self):
+        from django.db import IntegrityError
+        from .models import Allowance
+        owner = User.objects.create_user("slots@example.com", "strong-password")
+        for number in (1, 2, 3):
+            Allowance.objects.create(owner=owner, kind="creation", policy_version="three-free-v1", trial_slot=number)
+        for number in (1, 4):
+            with self.subTest(slot=number), self.assertRaises(IntegrityError), transaction.atomic():
+                Allowance.objects.create(owner=owner, kind="creation", policy_version="three-free-v1", trial_slot=number)
+
+
 class ProcessingFlowTests(TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()

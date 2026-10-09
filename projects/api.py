@@ -10,6 +10,7 @@ from catalog.api import template_json
 from commerce.models import Entitlement
 from momenria.http import ApiError, api_view, body_json, uuid_value
 from operations.rate_limit import check_rate_limit
+from processing.models import Job
 
 from .models import CharacterSheet, MediaAsset, Project, ResultVersion, SourceAsset
 from .character_sheets import build_source_sheet, sheet_json
@@ -45,7 +46,7 @@ def project_json(project):
         "id": str(project.id), "template_id": str(project.template_id), "offer_id": str(project.offer_id),
         "created_at": project.created_at.isoformat(), "updated_at": project.updated_at.isoformat(),
         "character_sheets": [sheet_json(sheet) for sheet in project.character_sheets.exclude(status=CharacterSheet.Status.DELETED).order_by("created_at", "version")],
-        "template_change_available": not project.results.exists() and not project.jobs.exclude(operation="character_sheet").exists() and not project.jobs.filter(state__in=("queued", "dispatching", "processing", "uncertain", "finalizing")).exists(),
+        "template_change_available": not project.results.exists() and not project.jobs.exclude(operation="character_sheet").exists() and not project.jobs.filter(state__in=Job.ACTIVE_STATES).exists(),
         "assigned_sheets": {str(item.slot_id): str(item.character_sheet_id) for item in project.assignments.all() if item.character_sheet_id},
         "template": template_json(project.template),
         "correction_available": True,

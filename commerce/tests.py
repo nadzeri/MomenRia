@@ -3,7 +3,7 @@ import json
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -16,6 +16,17 @@ from operations.models import SupportTicket
 
 from .models import Entitlement, Order, PaymentEvent, Refund
 from .services import apply_midtrans_notification, midtrans_signature_valid, refresh_order, request_refund
+
+
+class GenerationOrderModelTests(TestCase):
+    def test_downloadable_order_requires_dimensions(self):
+        from accounts.models import User
+        from catalog.models import Offer
+        from uuid import uuid4
+        owner = User.objects.create_user("dimensions@example.com", "strong-password")
+        offer = Offer.objects.create(version=1, name="Test", price_idr=9900)
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Order.objects.create(owner=owner, offer=offer, merchant_reference="MR-NO-DIMENSIONS", amount_idr=9900, result_id_snapshot=uuid4(), result_sha256="a" * 64, fulfillment_state="downloadable", expires_at=timezone.now())
 
 
 class MidtransSignatureTests(TestCase):

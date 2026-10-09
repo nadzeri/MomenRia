@@ -86,7 +86,8 @@ class EventCatalogTests(TestCase):
         template.status = TemplateVersion.Status.PAUSED
         template.save(update_fields=("status",))
         self.seed()
-        self.assertTrue(Offer.objects.get(version=1).active)
+        self.assertFalse(Offer.objects.get(version=1).active)
+        self.assertTrue(Offer.objects.get(purchase_unit="generation").active)
         self.seed(publish=True)
         template.refresh_from_db()
         self.assertEqual(template.status, TemplateVersion.Status.PAUSED)

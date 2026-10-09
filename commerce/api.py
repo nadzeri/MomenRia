@@ -13,7 +13,9 @@ def order_json(order):
     instructions = {key: order.provider_payload[key] for key in ("kind", "message") if key in order.provider_payload}
     return {
         "id": str(order.id), "merchant_reference": order.merchant_reference,
-        "result_id": str(order.result_id_snapshot), "amount": order.amount_idr, "currency": order.currency,
+        "result_id": str(order.result_id_snapshot) if order.result_id_snapshot else None,
+        "job_id": str(order.job_id) if order.job_id else None, "purpose": order.purpose,
+        "amount": order.amount_idr, "currency": order.currency,
         "payment_state": order.payment_state, "fulfillment_state": order.fulfillment_state,
         "payment_instructions": instructions, "expires_at": order.expires_at.isoformat(),
         "download_url": f"/api/v1/results/{order.result_id_snapshot}/master" if downloadable else None,
