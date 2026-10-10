@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -287,16 +288,18 @@ def _write_deletion_tombstone(project_id, deletion_epoch, deleted_at):
 
 def delete_project(owner, project_id):
     from commerce.models import Entitlement, Order
+    from commerce.services import resolve_generation_failure
 
     now = timezone.now()
     with transaction.atomic():
+        get_user_model().objects.select_for_update().get(pk=owner.pk)
         project = get_owned_project(owner, project_id, lock=True)
         project.state = Project.State.DELETED
         project.deletion_epoch += 1
         project.deleted_at = now
         _write_deletion_tombstone(project.id, project.deletion_epoch, now)
         project.save(update_fields=("state", "deletion_epoch", "deleted_at", "updated_at"))
-        safe_jobs = project.jobs.filter(state=Job.State.QUEUED)
+        safe_jobs = project.jobs.filter(state__in=(Job.State.QUEUED, Job.State.AWAITING_PAYMENT))
         for job in safe_jobs.select_related("budget_reservation"):
             if hasattr(job, "allowance_reservation"):
                 job.allowance_reservation.delete()
@@ -306,6 +309,8 @@ def delete_project(owner, project_id):
         Entitlement.objects.filter(result_id_snapshot__in=project.results.values("id"), revoked_at__isnull=True).update(revoked_at=now)
         Order.objects.filter(project=project, payment_state__in=(Order.PaymentState.CREATING, Order.PaymentState.PENDING, Order.PaymentState.UNCERTAIN)).update(payment_state=Order.PaymentState.CANCELLED, fulfillment_state=Order.FulfillmentState.ENDED)
         Order.objects.filter(project=project, payment_state=Order.PaymentState.PAID).update(fulfillment_state=Order.FulfillmentState.ENDED)
+        for order in Order.objects.filter(project=project, purpose=Order.Purpose.GENERATION, payment_state=Order.PaymentState.PAID, result__isnull=True):
+            resolve_generation_failure(order, "Foto berbayar dihapus sebelum hasil dapat diserahkan")
         SupportGrant.objects.filter(project=project, revoked_at__isnull=True).update(revoked_at=now)
         task = DeletionTask.objects.create(project_id_snapshot=project.id, deletion_epoch=project.deletion_epoch, next_run_at=now)
         OutboxEvent.objects.create(topic="project.deleted", payload={"project_id": str(project.id), "deletion_epoch": project.deletion_epoch})

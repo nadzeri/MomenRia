@@ -42,6 +42,17 @@ def health_ready(request):
 
 
 urlpatterns = [
+    *[
+        path(f"{page}/", TemplateView.as_view(template_name=f"public/{page}.html", extra_context={
+            "business_name": settings.BUSINESS_NAME,
+            "support_email": settings.SUPPORT_EMAIL,
+            "support_phone": settings.SUPPORT_PHONE,
+            "policy_version": settings.TERMS_VERSION,
+            "source_retention_days": settings.SOURCE_RETENTION_DAYS,
+            "result_retention_days": settings.RESULT_RETENTION_DAYS,
+        }), name=page)
+        for page in ("terms", "privacy", "refunds", "contact")
+    ],
     path("health/live", health_live),
     path("health/ready", health_ready),
     path("api/v1/templates", catalog_api.templates),
@@ -56,6 +67,7 @@ urlpatterns = [
     path("api/v1/projects/<uuid:project_id>/slots/<uuid:slot_id>", projects_api.slot),
     path("api/v1/projects/<uuid:project_id>/undo", projects_api.undo),
     path("api/v1/projects/<uuid:project_id>/jobs", processing_api.jobs),
+    path("api/v1/projects/<uuid:project_id>/generation-orders", commerce_api.generation_orders),
     path("api/v1/jobs/<uuid:job_id>", processing_api.job_detail),
     path("api/v1/results/<uuid:result_id>/preview", projects_api.preview),
     path("api/v1/results/<uuid:result_id>/master", projects_api.master),

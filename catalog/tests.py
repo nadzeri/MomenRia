@@ -28,6 +28,16 @@ class CatalogAdmissionTests(TestCase):
 
 @override_settings(APP_ENV="test")
 class EventCatalogTests(TestCase):
+    def test_seed_handles_empty_and_multiple_generation_offer_history(self):
+        Offer.objects.filter(purchase_unit="generation").delete()
+        self.seed()
+        first = Offer.objects.get(purchase_unit="generation")
+        later = Offer.objects.create(version=first.version + 1, name="Later draft", price_idr=9900, purchase_unit="generation")
+        self.seed(publish=True)
+        later.refresh_from_db()
+        self.assertTrue(later.active)
+        self.assertEqual(Offer.objects.filter(purchase_unit="generation", active=True).count(), 1)
+
     def seed(self, publish=False):
         call_command("seed_catalog", test_publish=publish, stdout=StringIO())
 
@@ -86,7 +96,8 @@ class EventCatalogTests(TestCase):
         template.status = TemplateVersion.Status.PAUSED
         template.save(update_fields=("status",))
         self.seed()
-        self.assertTrue(Offer.objects.get(version=1).active)
+        self.assertFalse(Offer.objects.get(version=1).active)
+        self.assertTrue(Offer.objects.get(purchase_unit="generation").active)
         self.seed(publish=True)
         template.refresh_from_db()
         self.assertEqual(template.status, TemplateVersion.Status.PAUSED)

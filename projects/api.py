@@ -10,11 +10,12 @@ from catalog.api import template_json
 from commerce.models import Entitlement
 from momenria.http import ApiError, api_view, body_json, uuid_value
 from operations.rate_limit import check_rate_limit
+from processing.models import Job
 
 from .models import CharacterSheet, MediaAsset, Project, ResultVersion, SourceAsset
 from .character_sheets import build_source_sheet, sheet_json
 from .services import assign_source, change_template, create_project, delete_project, emit_analytics, get_owned_project, undo_assignment, validate_and_store_source
-from .result_services import create_greeting, frame_preview, record_feedback
+from .result_services import authorized_root, create_greeting, export_dimensions, frame_preview, record_feedback
 
 
 def latest_feedback(result):
@@ -41,18 +42,25 @@ def project_json(project):
     def output(item):
         return item.region_snapshot.get("output") if isinstance(item.region_snapshot, dict) else None
 
+    def accessible(item):
+        try:
+            authorized_root(item, project.owner)
+            return True
+        except ApiError:
+            return False
+
     return {
         "id": str(project.id), "template_id": str(project.template_id), "offer_id": str(project.offer_id),
         "created_at": project.created_at.isoformat(), "updated_at": project.updated_at.isoformat(),
         "character_sheets": [sheet_json(sheet) for sheet in project.character_sheets.exclude(status=CharacterSheet.Status.DELETED).order_by("created_at", "version")],
-        "template_change_available": not project.results.exists() and not project.jobs.exclude(operation="character_sheet").exists() and not project.jobs.filter(state__in=("queued", "dispatching", "processing", "uncertain", "finalizing")).exists(),
+        "template_change_available": not project.results.exists() and not project.jobs.exclude(operation="character_sheet").exists() and not project.jobs.filter(state__in=Job.ACTIVE_STATES).exists(),
         "assigned_sheets": {str(item.slot_id): str(item.character_sheet_id) for item in project.assignments.all() if item.character_sheet_id},
         "template": template_json(project.template),
         "correction_available": True,
         "state": project.state, "revision": project.revision, "selected_result_id": str(project.selected_result_id) if project.selected_result_id else None,
         "assignments": assignments,
         "sources": [{"id": str(item.id), "status": item.status, "validation_code": item.validation_code, "width": item.width, "height": item.height, "expires_at": item.expires_at.isoformat(), "thumbnail_url": f"/api/v1/sources/{item.id}/thumbnail" if item.thumbnail else None} for item in sources],
-        "results": [{"id": str(item.id), "number": item.number, "kind": item.kind, "status": item.status, "greeting": item.greeting, "synthetic": item.synthetic, "created_at": item.created_at.isoformat(), "expires_at": item.expires_at.isoformat(), "references": references(item), "output": output(item), "feedback": latest_feedback(item)} for item in project.results.all()],
+        "results": [{"id": str(item.id), "number": item.number, "kind": item.kind, "status": item.status, "access_available": accessible(item), "greeting": item.greeting, "synthetic": item.synthetic, "created_at": item.created_at.isoformat(), "expires_at": item.expires_at.isoformat(), "references": references(item), "output": output(item), "feedback": latest_feedback(item)} for item in project.results.all()],
         "jobs": [job_json(item) for item in project.jobs.order_by("-created_at")[:5]],
     }
 
@@ -233,36 +241,40 @@ def character_sheet_preview(request, sheet_id):
 
 def _result_for_owner(owner, result_id):
     try:
-        return ResultVersion.objects.select_related("project").get(id=result_id, project__owner=owner, project__state__in=(Project.State.DRAFT, Project.State.ACTIVE), status=ResultVersion.Status.READY, expires_at__gt=timezone.now())
+        result = ResultVersion.objects.select_related("project", "generation_root").get(id=result_id, project__owner=owner, project__state__in=(Project.State.DRAFT, Project.State.ACTIVE), status=ResultVersion.Status.READY, expires_at__gt=timezone.now())
     except ResultVersion.DoesNotExist as error:
         raise ApiError(404, "not_found", "Hasilnya nggak ketemu. Coba buka lagi dari Foto saya.") from error
+    authorized_root(result, owner)
+    return result
+
+
+def _result_image(result, *, download, format_name="original", thumbnail=False):
+    if format_name not in {"original", "square", "portrait", "story"}:
+        raise ApiError(400, "invalid_format", "Pilih format asli, persegi, potret, atau Story.")
+    try:
+        media = result.media.get(kind=MediaAsset.Kind.PREVIEW if thumbnail else MediaAsset.Kind.MASTER, deleted_at__isnull=True, expires_at__gt=timezone.now())
+        if format_name != "original":
+            size = export_dimensions(media.width, media.height, format_name)
+            with media.file.open("rb") as source:
+                content = frame_preview(source, size)
+        else:
+            content = media.file.open("rb")
+        suffix = "" if format_name == "original" else f"-{format_name}"
+        response = FileResponse(content, content_type="image/jpeg", as_attachment=download, filename=f"momenria-{result.id}{suffix}.jpg")
+    except (MediaAsset.DoesNotExist, OSError) as error:
+        raise ApiError(404, "not_found", "File foto belum tersedia. Hubungi Bantuan.") from error
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @api_view("GET")
 def preview(request, result_id):
     result = _result_for_owner(request.user, result_id)
-    format_name = request.GET.get("format", "original")
-    formats = {"original": None, "square": (768, 768), "portrait": (576, 768), "story": (432, 768)}
-    if format_name not in formats:
-        raise ApiError(400, "invalid_format", "Pilih format asli, persegi, potret, atau Story.")
-    try:
-        media = result.media.get(kind=MediaAsset.Kind.PREVIEW, deleted_at__isnull=True, expires_at__gt=timezone.now())
-    except MediaAsset.DoesNotExist as error:
-        raise ApiError(404, "not_found", "Preview belum bisa dibuka. Coba lagi dari Foto saya.") from error
     download = request.GET.get("download") == "1"
-    try:
-        if formats[format_name]:
-            with media.file.open("rb") as source:
-                content = frame_preview(source, formats[format_name])
-        else:
-            content = media.file.open("rb")
-        suffix = "" if format_name == "original" else f"-{format_name}"
-        response = FileResponse(content, content_type="image/jpeg", as_attachment=download, filename=f"momenria-preview-{result.id}{suffix}.jpg")
-    except OSError as error:
-        raise ApiError(404, "not_found", "Preview belum bisa dibuka. Hubungi Bantuan, ya.") from error
-    response["Cache-Control"] = "private, no-store"
+    format_name = request.GET.get("format", "original")
+    response = _result_image(result, download=download, format_name=format_name, thumbnail=not download and "format" not in request.GET)
     if download:
-        emit_analytics("download_completed", owner=request.user, project=result.project, result=result, dimensions={"kind": "preview", "format": format_name})
+        emit_analytics("download_completed", owner=request.user, project=result.project, result=result, dimensions={"kind": "master", "format": format_name})
     return response
 
 
@@ -282,14 +294,7 @@ def source_thumbnail(request, source_id):
 @api_view("GET")
 def master(request, result_id):
     result = _result_for_owner(request.user, result_id)
-    if not Entitlement.objects.filter(owner=request.user, result_id_snapshot=result.id, revoked_at__isnull=True).exists():
-        raise ApiError(404, "not_found", "Hasilnya nggak ketemu. Coba buka lagi dari Foto saya.")
-    try:
-        media = result.media.get(kind=MediaAsset.Kind.MASTER, deleted_at__isnull=True)
-    except MediaAsset.DoesNotExist as error:
-        raise ApiError(404, "not_found", "Filenya belum bisa dibuka. Hubungi Bantuan, ya.") from error
-    response = FileResponse(media.file.open("rb"), content_type="image/jpeg", as_attachment=True, filename=f"momenria-{result.id}.jpg")
-    response["Cache-Control"] = "private, no-store"
+    response = _result_image(result, download=True, format_name=request.GET.get("format", "original"))
     emit_analytics("download_completed", owner=request.user, project=result.project, result=result)
     return response
 

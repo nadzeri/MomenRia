@@ -1,5 +1,7 @@
 import os
 import argparse
+import hashlib
+import re
 from pathlib import Path
 import signal
 import subprocess
@@ -15,6 +17,7 @@ os.chdir(ROOT)
 def main():
     parser = argparse.ArgumentParser(description="Run an isolated, synthetic MomenRia browser-test server")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--payments", action="store_true")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="momenria-e2e-") as directory:
         os.environ.update({
@@ -23,7 +26,7 @@ def main():
             "PUBLIC_ACCESS": "false", "APP_BASE_URL": f"http://127.0.0.1:{args.port}",
             "ALLOWED_HOSTS": "127.0.0.1,localhost", "DJANGO_SECRET_KEY": "isolated-e2e-secret-not-for-production",
             "PRIVATE_MEDIA_ROOT": str(Path(directory) / "media"), "TOMBSTONE_ROOT": str(Path(directory) / "tombstones"),
-            "AI_GATEWAY_MODE": "fake", "PAYMENT_PROVIDER": "disabled", "PAYMENT_ENV": "sandbox",
+            "AI_GATEWAY_MODE": "fake", "PAYMENT_PROVIDER": "fake" if args.payments else "disabled", "PAYMENT_ENV": "sandbox", "PAYMENT_CHECKOUT_ENABLED": str(args.payments).lower(),
             "NINE_ROUTER_API_KEY": "", "NINE_ROUTER_BASE_URL": "", "PAYMENT_SERVER_KEY": "",
             "ADMISSION_ENABLED": "true", "DAILY_BUDGET_IDR": "100000", "ALLOW_UNBOUNDED_TEST_BUDGET": "false",
             "STORAGE_MIN_FREE_BYTES": "0", "STORAGE_MAX_USED_PERCENT": "100", "RESULT_FONT_PATH": "",
@@ -39,7 +42,12 @@ def main():
         call_command("migrate", verbosity=0)
         call_command("seed_catalog", test_publish=True, verbosity=0)
         call_command("prepare_character_templates", model="fake-test", gateway_path="/images/generations", portrait_max_cost_idr=1500, sheet_max_cost_idr=500, generated_sheets=True, test_publish=True, verbosity=0)
-        for name in ("desktop", "mobile", "outsider", "graduate-desktop", "graduate-mobile", "character-desktop", "character-mobile", "competitive-desktop", "competitive-mobile"):
+        names = ["desktop", "mobile", "outsider", "graduate-desktop", "graduate-mobile", "character-desktop", "character-mobile", "competitive-desktop", "competitive-mobile", "payments-desktop", "payments-mobile", "paymentstates-desktop", "paymentstates-mobile"]
+        titles = re.findall(r"test\('([^']+)',", (ROOT / "tests/e2e/launch.spec.js").read_text())
+        for title in titles:
+            suffix = hashlib.sha256(title.encode()).hexdigest()[:10]
+            names.extend(f"launch-{surface}-{suffix}" for surface in ("desktop", "mobile"))
+        for name in names:
             user = User.objects.create_user(f"{name}@example.com", "Portrait-test-2026!", email_verified=True)
             EmailAddress.objects.create(user=user, email=user.email, primary=True, verified=True)
         fixtures = ROOT / "tests/e2e/generated"

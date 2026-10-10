@@ -17,7 +17,8 @@ from projects.models import CharacterSheet, Project, ResultVersion, SourceAsset
 from projects.services import emit_analytics, get_owned_project
 from projects.character_sheets import build_source_sheet, eligible_sheet, sheet_snapshot
 
-from .models import AdmissionControl, BudgetReservation, BudgetWindow, CostEntry, IdempotencyRecord, Job
+from .models import AdmissionControl, Allowance, AllowanceReservation, BudgetReservation, BudgetWindow, CostEntry, IdempotencyRecord, Job
+from .quota import initialize_trial_allowances, pricing_for
 from .prompts import SHEET_PROMPT, freeze_portrait_prompt, recipe_digest, validate_character_configuration
 
 
@@ -65,7 +66,7 @@ def reserve_budget(cost_bound):
         raise ApiError(503, "admission_paused", "Bikin foto baru lagi dijeda. Hasil yang masih dalam masa simpan tetap bisa didownload.")
     budget_window, _ = BudgetWindow.objects.get_or_create(scope="global", period=period)
     BudgetWindow.objects.select_for_update().get(id=budget_window.id)
-    if Job.objects.filter(state=Job.State.QUEUED).count() >= queue_limit:
+    if Job.objects.filter(state__in=(Job.State.QUEUED, Job.State.AWAITING_PAYMENT)).count() >= queue_limit:
         raise ApiError(503, "queue_full", "Antreannya lagi penuh. Coba lagi sebentar, ya.")
     reserved = budget_committed(period)
     if budget_limit is not None and reserved + estimate > budget_limit:
@@ -73,17 +74,19 @@ def reserve_budget(cost_bound):
     return estimate, period
 
 
-def admit_job(owner, project_id, operation, expected_revision, idempotency_key, *, parent_result_id=None, target_slot_id=None, replacement_source_id=None, correction_action=None):
+def admit_job(owner, project_id, operation, expected_revision, idempotency_key, *, parent_result_id=None, target_slot_id=None, replacement_source_id=None, correction_action=None, payment_offer=None):
     if not idempotency_key or len(idempotency_key) > 180:
         raise ApiError(400, "idempotency_key_required", "Header Idempotency-Key wajib diisi.")
-    payload = {"project_id": str(project_id), "operation": operation, "expected_revision": expected_revision, "parent_result_id": str(parent_result_id or ""), "target_slot_id": str(target_slot_id or ""), "replacement_source_id": str(replacement_source_id or "")}
+    payload = {"project_id": str(project_id), "operation": operation, "expected_revision": expected_revision, "parent_result_id": str(parent_result_id or ""), "target_slot_id": str(target_slot_id or ""), "replacement_source_id": str(replacement_source_id or ""), "correction_action": correction_action, "payment_offer_id": str(payment_offer.id) if payment_offer else None}
     request_hash = canonical_hash(payload)
+    identity = "job:paid_creation" if payment_offer else f"job:{operation}"
     with transaction.atomic():
-        existing = _existing_idempotency(owner, f"job:{operation}", idempotency_key, request_hash)
+        get_user_model().objects.select_for_update().get(pk=owner.pk)
+        existing = _existing_idempotency(owner, identity, idempotency_key, request_hash)
         if existing:
             return Job.objects.get(id=existing.response["job_id"]), False
         project = get_owned_project(owner, project_id, lock=True)
-        existing = _existing_idempotency(owner, f"job:{operation}", idempotency_key, request_hash)
+        existing = _existing_idempotency(owner, identity, idempotency_key, request_hash)
         if existing:
             return Job.objects.get(id=existing.response["job_id"]), False
         if project.revision != expected_revision:
@@ -91,7 +94,7 @@ def admit_job(owner, project_id, operation, expected_revision, idempotency_key, 
         if not owner.email_verified:
             raise ApiError(403, "email_not_verified", "Verifikasi emailmu dulu sebelum bikin foto, ya.")
         _check_storage_headroom()
-        if project.template.status != project.template.Status.PUBLISHED or not project.template.evidence_approved or not project.offer.active:
+        if project.template.status != project.template.Status.PUBLISHED or not project.template.evidence_approved:
             raise ApiError(409, "variant_unavailable", "Template atau paket ini sudah nggak tersedia. Coba pilih yang lain, ya.")
         if project.jobs.filter(state__in=Job.ACTIVE_STATES).exists():
             active = project.jobs.filter(state__in=Job.ACTIVE_STATES).first()
@@ -100,12 +103,28 @@ def admit_job(owner, project_id, operation, expected_revision, idempotency_key, 
             raise ApiError(400, "invalid_operation", "Operasi tidak didukung.")
 
         correction_source_snapshot = None
+        allowance = None
         if operation == Job.Operation.CREATION:
             assignments = list(project.assignments.select_related("slot", "source", "source__consent", "character_sheet").order_by("slot__position"))
             if len(assignments) != project.template.people_count:
                 raise ApiError(409, "project_not_ready", "Tambahkan foto untuk tiap wajah dulu, ya.")
             if any(item.source.status != SourceAsset.Status.READY or item.source.expires_at <= timezone.now() or not item.source.consent.granted for item in assignments):
                 raise ApiError(409, "source_not_ready", "Masih ada foto yang belum siap. Cek foto di tiap posisi dulu, ya.")
+            initialize_trial_allowances(owner)
+            if payment_offer:
+                if pricing_for(owner)["free_used"] < 3:
+                    raise ApiError(409, "free_pictures_available", "Pakai jatah gratis atau tunggu foto yang masih diproses sebelum membeli foto baru.")
+                project.offer = payment_offer
+                project.save(update_fields=("offer", "updated_at"))
+            else:
+                allowance = Allowance.objects.select_for_update(of=("self",)).filter(owner=owner, trial_slot__isnull=False, consumed_at__isnull=True, reservation__isnull=True).order_by("trial_slot").first()
+                if not allowance:
+                    pricing = pricing_for(owner)
+                    if pricing["free_reserved"]:
+                        raise ApiError(409, "free_pictures_processing", "Jatah gratis sedang diproses. Tunggu statusnya sebelum membuat foto baru.")
+                    from catalog.models import Offer
+                    offer = Offer.objects.filter(active=True, purchase_unit="generation", price_idr=9900).first()
+                    raise ApiError(402, "payment_required", "Tiga foto gratis sudah terpakai. Foto baru berikutnya Rp9.900.", {"amount_idr": 9900, "currency": "IDR", "offer_id": str(offer.id) if offer else None, "checkout_enabled": pricing["checkout_enabled"]})
             parent_result = None
             target_slot = None
             sources = assignments
@@ -117,6 +136,8 @@ def admit_job(owner, project_id, operation, expected_revision, idempotency_key, 
                 target_slot = project.template.slots.get(id=target_slot_id)
             except Exception as error:
                 raise ApiError(404, "not_found", "Hasil atau wajah yang mau dikoreksi nggak ketemu. Buka lagi proyekmu dari Foto saya.") from error
+            from projects.result_services import authorized_root
+            authorized_root(parent_result, owner)
             if correction_action == "replace_reference" and not replacement_source_id:
                 raise ApiError(400, "replacement_required", "Pilih foto pengganti dari orang yang sama dulu, ya.")
             correction_source_snapshot = [dict(item) for item in parent_result.source_snapshot]
@@ -162,14 +183,17 @@ def admit_job(owner, project_id, operation, expected_revision, idempotency_key, 
         }
         freeze_portrait_prompt(snapshot, project.template, operation, target_slot_id)
         job = Job.objects.create(
-            owner=owner, project=project, parent_result=parent_result, target_slot=target_slot,
+            owner=owner, project=project, allowance=allowance, parent_result=parent_result, target_slot=target_slot,
+            state=Job.State.AWAITING_PAYMENT if payment_offer else Job.State.QUEUED,
             operation=operation, input_snapshot=snapshot, deletion_epoch=project.deletion_epoch,
             estimated_cost_idr=int(estimate), next_run_at=timezone.now(),
         )
         BudgetReservation.objects.create(job=job, scope="global", period=period, estimate=estimate)
+        if allowance:
+            AllowanceReservation.objects.create(allowance=allowance, job=job)
         response = {"job_id": str(job.id), "state": job.state, "status_url": f"/api/v1/jobs/{job.id}"}
-        IdempotencyRecord.objects.create(owner=owner, operation=f"job:{operation}", key=idempotency_key, request_hash=request_hash, status_code=202, response=response)
-        OutboxEvent.objects.create(topic="job.queued", payload=response)
+        IdempotencyRecord.objects.create(owner=owner, operation=identity, key=idempotency_key, request_hash=request_hash, status_code=202, response=response)
+        OutboxEvent.objects.create(topic="job.awaiting_payment" if payment_offer else "job.queued", payload=response)
         emit_analytics("creation_requested" if operation == Job.Operation.CREATION else "correction_requested", owner=owner, project=project, job=job)
         return job, True
 
@@ -180,6 +204,7 @@ def admit_character_sheet(owner, project_id, source_id, expected_revision, idemp
     operation = "job:character_sheet"
     request_hash = canonical_hash({"project_id": str(project_id), "source_id": str(source_id), "expected_revision": expected_revision})
     with transaction.atomic():
+        get_user_model().objects.select_for_update().get(pk=owner.pk)
         project = get_owned_project(owner, project_id, lock=True)
         existing = _existing_idempotency(owner, operation, idempotency_key, request_hash)
         if existing:
@@ -239,6 +264,8 @@ def admit_character_sheet(owner, project_id, source_id, expected_revision, idemp
 
 def release_failed_job(job, code):
     with transaction.atomic():
+        get_user_model().objects.select_for_update().get(pk=job.owner_id)
+        Project.objects.select_for_update().get(pk=job.project_id)
         locked = Job.objects.select_for_update().get(id=job.id)
         if locked.lease_token != job.lease_token or locked.fencing_token != job.fencing_token or locked.state == Job.State.READY:
             return
@@ -257,3 +284,8 @@ def release_failed_job(job, code):
             job.budget_reservation.state = BudgetReservation.State.RECONCILED if costs is not None or completed else BudgetReservation.State.RELEASED
             job.budget_reservation.actual = costs
             job.budget_reservation.save(update_fields=("state", "actual"))
+        from commerce.models import Order
+        from commerce.services import resolve_generation_failure
+        order = Order.objects.filter(job=job, payment_state=Order.PaymentState.PAID).first()
+        if order:
+            resolve_generation_failure(order, f"Pembuatan foto dipastikan gagal: {code}")

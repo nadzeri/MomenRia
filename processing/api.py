@@ -15,6 +15,7 @@ def job_json(job):
         "state": job.state, "error_code": job.error_code,
         "created_at": job.created_at.isoformat(), "updated_at": job.updated_at.isoformat(),
         "result_id": str(job.result_id) if job.result_id else None,
+        "order_id": str(job.generation_order.id) if hasattr(job, "generation_order") else None,
         "character_sheet_id": str(job.character_sheet_id) if job.character_sheet_id else None,
         "status_url": f"/api/v1/jobs/{job.id}",
         "poll_after_seconds": 3 if job.state in Job.ACTIVE_STATES else None,
@@ -26,7 +27,7 @@ def job_json(job):
 def jobs(request, project_id):
     check_rate_limit(request, "job", limit=10, seconds=3600)
     data = body_json(request)
-    if set(data) != {"operation", "expected_revision"} or data.get("operation") != Job.Operation.CREATION or not isinstance(data.get("expected_revision"), int):
+    if set(data) != {"operation", "expected_revision"} or data.get("operation") != Job.Operation.CREATION or type(data.get("expected_revision")) is not int:
         raise ApiError(400, "invalid_job", "Permintaan pembuatan tidak valid.")
     job, created = admit_job(
         request.user, project_id, data["operation"], data["expected_revision"],
@@ -40,7 +41,7 @@ def corrections(request, result_id):
     check_rate_limit(request, "job", limit=10, seconds=3600)
     data = body_json(request)
     required = {"target_slot_id", "operation", "expected_revision"}
-    if not required.issubset(data) or set(data) - required - {"replacement_source_id"} or data["operation"] not in {"enhance", "replace_reference"} or not isinstance(data["expected_revision"], int):
+    if not required.issubset(data) or set(data) - required - {"replacement_source_id"} or data["operation"] not in {"enhance", "replace_reference"} or type(data.get("expected_revision")) is not int:
         raise ApiError(400, "invalid_correction", "Data koreksi tidak lengkap atau tidak valid.")
     try:
         parent = ResultVersion.objects.select_related("project").get(id=result_id, project__owner=request.user, project__state=Project.State.ACTIVE, status=ResultVersion.Status.READY, expires_at__gt=timezone.now())

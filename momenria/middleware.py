@@ -33,7 +33,8 @@ class SecurityHeadersMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        response.setdefault("Content-Security-Policy", "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
+        qr_origin = (" https://api.midtrans.com" if settings.PAYMENT_ENV == "production" else " https://api.sandbox.midtrans.com") if settings.PAYMENT_PROVIDER == "midtrans" else ""
+        response.setdefault("Content-Security-Policy", f"default-src 'self'; img-src 'self' data: blob:{qr_origin}; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
         response.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         return response
 

@@ -32,7 +32,7 @@ def templates(request):
     rows = TemplateVersion.objects.filter(status=TemplateVersion.Status.PUBLISHED, evidence_approved=True).prefetch_related("slots")
     newer = TemplateVersion.objects.filter(slug=OuterRef("slug"), version__gt=OuterRef("version"), status=TemplateVersion.Status.PUBLISHED, evidence_approved=True)
     rows = rows.filter(~Exists(newer))
-    offers = Offer.objects.filter(active=True).order_by("price_idr")
+    offers = Offer.objects.filter(active=True, purchase_unit="generation", price_idr=9900).order_by("version")
     control = AdmissionControl.objects.filter(key="global").first()
     control_enabled = control.enabled if control else settings.APP_ENV == "test"
     budget_enabled = settings.APP_ENV == "test" and settings.ALLOW_UNBOUNDED_TEST_BUDGET or settings.DAILY_BUDGET_IDR > 0 and (not control or control.daily_budget_idr > 0)

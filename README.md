@@ -47,7 +47,7 @@ Run checks:
 node --test test-*.cjs
 ```
 
-For real local generation, set `AI_GATEWAY_MODE=9router`, `NINE_ROUTER_BASE_URL`, `NINE_ROUTER_API_KEY`, `NINE_ROUTER_GENERATION_MODEL`, and `NINE_ROUTER_GENERATION_PATH=/images/generations`. `AI_GATEWAY_MODE=fake` and `PAYMENT_PROVIDER=fake` work only with `APP_ENV=test`; fake AI output is marked synthetic and cannot be purchased. 9Router output between `AI_UPSCALE_MIN_LONG_EDGE` and 2048 px receives a disclosed local Lanczos finishing step; smaller output is rejected. Admissions require `ADMISSION_ENABLED=true`, each published template needs worst-case `max_cost_idr`, and either `DAILY_BUDGET_IDR` must be positive or test-only `ALLOW_UNBOUNDED_TEST_BUDGET=true` must be explicit. Production rejects unbounded mode.
+For real local generation, set `AI_GATEWAY_MODE=9router`, `NINE_ROUTER_BASE_URL`, `NINE_ROUTER_API_KEY`, `NINE_ROUTER_GENERATION_MODEL`, and `NINE_ROUTER_GENERATION_PATH=/images/generations`. `AI_GATEWAY_MODE=fake` and `PAYMENT_PROVIDER=fake` work only with `APP_ENV=test`; fake AI output is marked synthetic and can only use the fake payment provider in isolated test environments; real Midtrans purchases reject synthetic processing. 9Router output between `AI_UPSCALE_MIN_LONG_EDGE` and 2048 px receives a disclosed local Lanczos finishing step; smaller output is rejected. Admissions require `ADMISSION_ENABLED=true`, each published template needs worst-case `max_cost_idr`, and either `DAILY_BUDGET_IDR` must be positive or test-only `ALLOW_UNBOUNDED_TEST_BUDGET=true` must be explicit. Production rejects unbounded mode.
 
 ## Main commands
 
@@ -60,11 +60,11 @@ The catalog includes 28 templates for Indonesian holidays, birthdays, eight univ
 
 API contract: [`openapi.yaml`](openapi.yaml). Operations and unresolved release decisions: [`docs/operations.md`](docs/operations.md). Requirement-by-requirement evidence: [`docs/implementation-status.md`](docs/implementation-status.md).
 
-## Non-payment launch preparation
+## Pricing and Midtrans readiness
 
-The Django app now includes a landing page, searchable template catalog, template details, studio, private photo library, result review/downloads, guide, support, privacy, terms, and branded account pages. Templates are browsed through six moment collections; each collection has its own link and relevant filters. Studio's **Ganti template** picker changes the current draft before generation starts. Confirmation clears face placements while retaining uploaded photos, which can be assigned again through **Foto tersimpan**. `PAYMENT_PROVIDER=disabled` hides checkout and payment navigation. Free downloads are watermarked previews; master downloads still require the existing entitlement.
+The Django app now includes a landing page, searchable template catalog, template details, studio, private photo library, result review/downloads, guide, support, privacy, terms, and branded account pages. Templates are browsed through six moment collections; each collection has its own link and relevant filters. Studio's **Ganti template** picker changes the current draft before generation starts. Confirmation clears face placements while retaining uploaded photos, which can be assigned again through **Foto tersimpan**. Each account receives three lifetime successful new pictures, then pays IDR9,900 per new picture before generation. Corrections to the same picture, greetings, repeated downloads and format exports stay free. All downloads use full-quality unwatermarked masters, with root grants enforcing ownership, expiry and refund revocation. `PAYMENT_CHECKOUT_ENABLED=false` pauses new purchases while account order history remains available; keep the payment provider configured for reconciliation when money is in flight.
 
-Launch plan: [`docs/superpowers/plans/2026-09-25-launch-readiness.md`](docs/superpowers/plans/2026-09-25-launch-readiness.md). Current evidence and remaining production gates: [`docs/launch-readiness.md`](docs/launch-readiness.md). A synthetic passing test is not evidence of likeness quality or production readiness.
+Pricing plan: [`Midtrans implementation plan`](docs/superpowers/plans/2026-10-10-midtrans-website-requirements.md). Review and external activation gates: [`Midtrans checklist`](docs/midtrans-review-checklist.md). Current evidence and remaining production gates: [`docs/launch-readiness.md`](docs/launch-readiness.md). A synthetic passing test is not evidence of likeness quality or production readiness.
 
 ### Browser tests
 
@@ -72,10 +72,11 @@ Launch plan: [`docs/superpowers/plans/2026-09-25-launch-readiness.md`](docs/supe
 npm ci
 npx playwright install chromium webkit
 npm run test:e2e
+npx playwright test --config=playwright.payments.config.js
 npm run test:e2e:report
 ```
 
-Playwright starts separate loopback Django servers on ports 8765 and 8767 for desktop and mobile. Each uses its own temporary database, private-media directory, verified test accounts, and synthetic worker so the two suites do not consume each other's rate limits. They do not read `.env`, change your existing database, call a real AI provider, or charge money. Keep both ports free. Desktop Chromium and iPhone-sized WebKit both run the suite; physical-device testing remains a launch gate. Reports, traces and screenshots appear under `playwright-report/` and `test-results/`.
+Playwright starts separate loopback Django servers on ports 8765 and 8767 for desktop and mobile. Each uses its own temporary database, private-media directory, verified test accounts, and synthetic worker so the two suites do not consume each other's rate limits. They do not read `.env`, change your existing database, call a real AI provider, or charge money. Generation scenarios use independent accounts with quota enforcement enabled. The paid suite uses separate servers on 8775/8777 and fake payment only; keep all four ports free. Desktop Chromium and iPhone-sized WebKit both run the suite; physical-device testing remains a launch gate. Reports, traces and screenshots appear under `playwright-report/` and `test-results/`.
 
 The complete upload/generation/correction/greeting/download/support/deletion journey uses real Django APIs. Explicitly named failure-state and latency tests intercept selected responses. Backend tests cover actual paused-template access, ownership, expiry, immutable results and PostgreSQL concurrency.
 
@@ -93,4 +94,4 @@ New template versions support private original-pixel character sheets, optional 
 
 ### Competitive workflow improvements
 
-Global catalog search opens matching templates directly. Studio accepts several photos in one consented upload session, with explicit face-position review and recovery after partial failures. Results support side-by-side version comparison and square, portrait, or Story/Status preview exports that preserve every image edge and the watermark. Exports do not regenerate faces, increase image detail, or extend retention. See the [competitor comparison and remaining quality benchmark](docs/competitive-review.md); overall competitive superiority has not been established.
+Global catalog search opens matching templates directly. Studio accepts several photos in one consented upload session, with explicit face-position review and recovery after partial failures. Results support side-by-side version comparison and square, portrait, or Story/Status exports from the clean full-resolution master that preserve every image edge with native-resolution padding. Exports do not regenerate faces, increase image detail, or extend retention. See the [competitor comparison and remaining quality benchmark](docs/competitive-review.md); overall competitive superiority has not been established.

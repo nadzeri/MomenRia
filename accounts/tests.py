@@ -10,12 +10,36 @@ import sys
 
 from django.contrib import admin
 from django.core import mail
+from django.utils import timezone
 from django.test import Client, RequestFactory, TestCase, override_settings
 
 from operations.models import AuditEvent
 
 from .admin import UserAdmin
 from .models import User
+
+
+class PricingSessionTests(TestCase):
+    def test_anonymous_session_exposes_price_without_account_usage(self):
+        response = self.client.get("/api/v1/session")
+        self.assertIn("pricing", response.json())
+        pricing = response.json()["pricing"]
+        self.assertEqual(pricing["free_limit"], 3)
+        self.assertEqual(pricing["price_idr"], 9900)
+        self.assertIsNone(pricing["free_used"])
+        self.assertIsNone(pricing["free_remaining"])
+
+    def test_lifetime_usage_is_private_and_survives_policy_change(self):
+        from processing.models import Allowance
+        user = User.objects.create_user("pricing@example.com", "strong-password", email_verified=True)
+        self.client.force_login(user)
+        self.assertEqual(self.client.get("/api/v1/session").json()["pricing"]["free_remaining"], 3)
+        Allowance.objects.filter(owner=user, trial_slot=1).update(consumed_at=timezone.now())
+        with override_settings(TERMS_VERSION="future-version"):
+            self.assertEqual(self.client.get("/api/v1/session").json()["pricing"]["free_remaining"], 2)
+        other = User.objects.create_user("other-pricing@example.com", "strong-password")
+        self.client.force_login(other)
+        self.assertEqual(self.client.get("/api/v1/session").json()["pricing"]["free_remaining"], 3)
 
 
 @override_settings(PUBLIC_ACCESS=False, ACCOUNT_RATE_LIMITS=False, EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")

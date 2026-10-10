@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: MomenRia API
-  version: 0.3.0
-  description: Same-origin API with private customer accounts and CSRF-protected mutations. Shared-owner PUBLIC_ACCESS mode is test-only and rejected in production. Payments may be disabled while owner-only preview downloads remain available. Operator endpoints require authenticated staff sessions.
+  version: 0.4.0
+  description: Same-origin API with private accounts and CSRF-protected mutations. Three lifetime successful free new pictures per account, then IDR9900 per new picture; corrections and full-quality downloads remain free. Shared-owner PUBLIC_ACCESS is test-only. New checkout can be paused while reconciliation and authorized downloads continue. Operator endpoints require staff MFA and recent authentication for sensitive actions.
 servers:
   - url: /api/v1
 components:
@@ -12,6 +12,32 @@ components:
       in: cookie
       name: sessionid
   schemas:
+    Pricing:
+      type: object
+      properties:
+        model: {const: three_free_then_per_picture}
+        free_limit: {type: integer, const: 3}
+        free_used: {type: [integer, "null"]}
+        free_reserved: {type: [integer, "null"]}
+        free_remaining: {type: [integer, "null"]}
+        price_idr: {type: integer, const: 9900}
+        currency: {const: IDR}
+        refund_observed_idr: {type: integer, minimum: 0, description: Verified amount already returned, including partial refunds}
+        refund_remaining_idr: {type: integer, minimum: 0, description: Maximum remaining amount refundable; policy and staff approval still required}
+        checkout_enabled: {type: boolean}
+        audit_required: {type: boolean}
+    Order:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        purpose: {enum: [generation, result_download]}
+        job_id: {type: [string, "null"], format: uuid}
+        job_state: {type: [string, "null"]}
+        project_id: {type: [string, "null"], format: uuid}
+        result_id: {type: [string, "null"], format: uuid}
+        amount: {type: integer, minimum: 1}
+        currency: {const: IDR}
+        download_url: {type: [string, "null"]}
     Error:
       type: object
       required: [code, message, request_id, retryable]
@@ -46,6 +72,7 @@ components:
             properties:
               id: {type: string, format: uuid}
               created_at: {type: string, format: date-time}
+              access_available: {type: boolean, description: Live root authorization; false for revoked, unavailable or expired results}
               feedback:
                 type: array
                 description: Latest feedback for each slot and the global null slot on this exact result version. New versions start unreviewed.
@@ -73,7 +100,7 @@ components:
         id: {type: string, format: uuid}
         project_id: {type: string, format: uuid}
         operation: {enum: [creation, correction, character_sheet]}
-        state: {enum: [queued, dispatching, processing, uncertain, finalizing, ready, failed, cancelled]}
+        state: {enum: [awaiting_payment, queued, dispatching, processing, uncertain, finalizing, ready, failed, cancelled]}
         error_code: {type: string}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
@@ -137,7 +164,8 @@ paths:
                   public_access: {type: boolean}
                   email_verified: {type: boolean}
                   csrf_token: {type: string}
-                  creation_available: {type: boolean, description: Always true; creation has no lifetime quota}
+                  creation_available: {type: boolean, description: Free quota or configured paid checkout is available; admission, source and capacity checks still apply}
+                  pricing: {$ref: '#/components/schemas/Pricing'}
                   operating_mode:
                     type: object
                     properties:
@@ -154,6 +182,8 @@ paths:
                       source_retention_days: {type: integer}
                       result_retention_days: {type: integer}
                       upload_max_bytes: {type: integer}
+                      terms_version: {type: string}
+                      refund_policy_version: {type: string}
   /templates:
     get:
       security: []
@@ -388,6 +418,31 @@ paths:
         "200": {description: Sheet metadata and incremented project revision}
         "404": {$ref: '#/components/responses/NotFound'}
         "409": {description: Stale revision, active job, existing result, unassigned/expired source or sheet no longer reviewable}
+  /projects/{project_id}/generation-orders:
+    post:
+      summary: Prepare one paid picture after lifetime trial usage, with explicit policy acceptance
+      parameters:
+        - {$ref: '#/components/parameters/ProjectId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [offer_id, expected_revision, terms_version, refund_policy_version, policies_accepted]
+              properties:
+                offer_id: {type: string, format: uuid}
+                expected_revision: {type: integer}
+                terms_version: {type: string}
+                refund_policy_version: {type: string}
+                policies_accepted: {type: boolean, const: true}
+      responses:
+        "201": {description: Prepared generation order, content: {application/json: {schema: {$ref: '#/components/schemas/Order'}}}}
+        "200": {description: Accepted idempotent replay}
+        "409": {$ref: '#/components/responses/Conflict'}
+        "503": {description: New purchases paused}
   /projects/{project_id}/jobs:
     parameters:
       - {$ref: '#/components/parameters/ProjectId'}
@@ -421,18 +476,18 @@ paths:
         "404": {$ref: '#/components/responses/NotFound'}
   /results/{result_id}/preview:
     get:
-      summary: Stream owner-only watermarked preview
+      summary: Stream authorized clean thumbnail or full-quality export
       parameters:
         - {$ref: '#/components/parameters/ResultId'}
         - name: download
           in: query
           required: false
-          description: Set to 1 for a named JPEG attachment. Ownership and expiry checks are identical to inline preview; no payment is required.
+          description: Set to 1 for a full-quality master attachment. All routes require an unrevoked root grant, ownership and unexpired media; downloads never create a new payment.
           schema: {type: string, enum: ["1"]}
         - name: format
           in: query
           required: false
-          description: Original preview or a padded canvas (square 768×768, portrait 576×768, story 432×768). Preserves the complete watermarked preview without cropping or upscaling its pixels. Does not generate a new result or extend retention.
+          description: An explicit format uses the full-resolution master. Square 1:1, portrait 3:4 and story 9:16 add padding at native resolution without cropping or upscaling. Canvases over 40 million pixels are rejected; original downloads retain exact master bytes. No new result or retention extension.
           schema: {type: string, enum: [original, square, portrait, story], default: original}
       responses:
         "200": {description: JPEG preview, content: {image/jpeg: {schema: {type: string, format: binary}}}}
@@ -441,7 +496,11 @@ paths:
   /results/{result_id}/master:
     get:
       summary: Stream exact entitled master
-      parameters: [{$ref: '#/components/parameters/ResultId'}]
+      parameters:
+        - {$ref: '#/components/parameters/ResultId'}
+        - name: format
+          in: query
+          schema: {type: string, enum: [original, square, portrait, story], default: original}
       responses:
         "200": {description: JPEG master, content: {image/jpeg: {schema: {type: string, format: binary}}}}
         "404": {$ref: '#/components/responses/NotFound'}

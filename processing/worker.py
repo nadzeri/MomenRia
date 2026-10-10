@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 
 from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
@@ -19,8 +20,9 @@ from projects.models import CharacterSheet, MediaAsset, Project, ResultVersion, 
 from projects.services import detect_faces, emit_analytics
 from projects.storage import store_bytes_atomically
 
-from .models import Allowance, BudgetReservation, Job, JobAttempt, WorkerControl
+from .models import Allowance, AllowanceReservation, BudgetReservation, Job, JobAttempt, WorkerControl
 from .services import release_failed_job
+from commerce.models import Entitlement, Order, Refund
 
 
 class WorkerFailure(Exception):
@@ -240,14 +242,6 @@ def _image_bytes(image, quality=94):
 def _preview(master):
     image = master.copy()
     image.thumbnail((768, 768), Image.Resampling.LANCZOS)
-    draw = ImageDraw.Draw(image, "RGBA")
-    text = "MomenRia · PRATINJAU"
-    font = ImageFont.load_default(size=24)
-    box = draw.textbbox((0, 0), text, font=font)
-    x = max(16, image.width - (box[2] - box[0]) - 24)
-    y = max(16, image.height - (box[3] - box[1]) - 24)
-    draw.rounded_rectangle((x - 10, y - 8, image.width - 14, image.height - 12), radius=8, fill=(20, 50, 38, 175))
-    draw.text((x, y), text, font=font, fill=(255, 255, 255, 235))
     return image
 
 
@@ -306,6 +300,7 @@ def _finish_character_job(job, attempt, image, synthetic, actual_model):
 
 def run_job(job):
     with transaction.atomic():
+        get_user_model().objects.select_for_update().get(pk=job.owner_id)
         Project.objects.select_for_update().get(id=job.project_id)
         locked = Job.objects.select_for_update().get(id=job.id)
         if locked.lease_token != job.lease_token or locked.fencing_token != job.fencing_token or locked.state != Job.State.DISPATCHING:
@@ -317,6 +312,7 @@ def run_job(job):
         locked.heartbeat_at = timezone.now()
         locked.save(update_fields=("state", "heartbeat_at", "updated_at"))
     try:
+        _assert_billing_authorized(job)
         _assert_inputs_eligible(job)
         master, synthetic, actual_model, provider_request_id = _generate(job, attempt)
         attempt.provider_completed = not synthetic
@@ -335,6 +331,7 @@ def run_job(job):
         preview_bytes = _image_bytes(preview, quality=88)
         expires_at = timezone.now() + timedelta(days=settings.RESULT_RETENTION_DAYS)
         with transaction.atomic():
+            get_user_model().objects.select_for_update().get(pk=job.owner_id)
             project = Project.objects.select_for_update().get(id=job.project_id)
             locked = Job.objects.select_for_update().get(id=job.id)
             if locked.lease_token != job.lease_token or locked.fencing_token != job.fencing_token:
@@ -342,6 +339,9 @@ def run_job(job):
             if project.state == Project.State.DELETED or project.deletion_epoch != locked.deletion_epoch:
                 raise WorkerFailure("project_deleted")
             _assert_inputs_eligible(locked)
+            _assert_billing_authorized(locked)
+            if locked.parent_result_id:
+                expires_at = (locked.parent_result.generation_root or locked.parent_result).expires_at
             if locked.state not in (Job.State.PROCESSING, Job.State.UNCERTAIN):
                 raise WorkerFailure("stale_fencing_token")
             locked.state = Job.State.FINALIZING
@@ -367,6 +367,17 @@ def run_job(job):
             if locked.allowance_id:
                 locked.allowance.consumed_at = timezone.now()
                 locked.allowance.save(update_fields=("consumed_at",))
+                Entitlement.objects.create(owner=locked.owner, result=result, result_id_snapshot=result.id, grant_source=Entitlement.GrantSource.TRIAL)
+            elif locked.operation == Job.Operation.CREATION:
+                order = Order.objects.select_for_update().get(job=locked, payment_state=Order.PaymentState.PAID)
+                order.result = result
+                order.result_id_snapshot = result.id
+                order.result_sha256 = master_asset.sha256
+                order.result_width = master.width
+                order.result_height = master.height
+                order.fulfillment_state = Order.FulfillmentState.DOWNLOADABLE
+                order.save(update_fields=("result", "result_id_snapshot", "result_sha256", "result_width", "result_height", "fulfillment_state", "updated_at"))
+                Entitlement.objects.create(owner=locked.owner, result=result, result_id_snapshot=result.id, order=order)
             locked.state = Job.State.READY
             locked.result = result
             locked.save(update_fields=("state", "result", "updated_at"))
@@ -395,3 +406,22 @@ def run_job(job):
         else:
             release_failed_job(job, error.code)
         return False
+
+
+def _assert_billing_authorized(job):
+    if job.operation == Job.Operation.CHARACTER_SHEET:
+        return
+    if job.operation == Job.Operation.CORRECTION:
+        from momenria.http import ApiError
+        from projects.result_services import authorized_root
+        try:
+            authorized_root(job.parent_result, job.owner)
+        except ApiError as error:
+            raise WorkerFailure("correction_not_authorized") from error
+        return
+    if job.allowance_id:
+        if AllowanceReservation.objects.filter(job=job, allowance__owner=job.owner, allowance__trial_slot__isnull=False, allowance__consumed_at__isnull=True, released_at__isnull=True).exists():
+            return
+    elif Order.objects.filter(job=job, owner=job.owner, purpose=Order.Purpose.GENERATION, payment_state=Order.PaymentState.PAID, amount_idr=9900, currency="IDR").exclude(refunds__state=Refund.State.SUCCEEDED).exists():
+        return
+    raise WorkerFailure("generation_not_authorized")

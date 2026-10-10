@@ -1,4 +1,5 @@
 import time
+import logging
 from datetime import timedelta
 from pathlib import Path
 import shutil
@@ -32,7 +33,7 @@ def expire_assets(now):
         source.status = SourceAsset.Status.EXPIRED
         source.deleted_at = now
         source.save(update_fields=("status", "deleted_at"))
-    for result in ResultVersion.objects.filter(expires_at__lte=now, status=ResultVersion.Status.READY).iterator():
+    for result in ResultVersion.objects.filter(Q(expires_at__lte=now) | Q(generation_root__expires_at__lte=now), status__in=(ResultVersion.Status.READY, ResultVersion.Status.QUARANTINED)).iterator():
         for media in result.media.filter(deleted_at__isnull=True):
             remove_file(media.file)
             media.deleted_at = now
@@ -199,6 +200,32 @@ def evaluate_alerts(now):
     _set_alert("backup_stale", backup_age is None or backup_age > 26 * 3600, OperationalAlert.Severity.CRITICAL, "Cadangan belum terverifikasi dalam 26 jam", {"age_seconds": backup_age}, now)
 
 
+def reconcile_payments(now):
+    from commerce.services import cancel_prepared_job, lock_order, refresh_order
+    from momenria.http import ApiError
+    if settings.PAYMENT_PROVIDER == "disabled":
+        return
+    pending = (Order.PaymentState.CREATING, Order.PaymentState.PENDING, Order.PaymentState.UNCERTAIN)
+    terminal = (Order.PaymentState.FAILED, Order.PaymentState.CANCELLED, Order.PaymentState.EXPIRED)
+    rows = Order.objects.filter(Q(payment_state__in=pending) | Q(payment_state=Order.PaymentState.PAID) & ~Q(fulfillment_state=Order.FulfillmentState.ENDED) | Q(payment_state__in=terminal) & ~Q(provider_payload__transaction_status__in=("deny", "cancel", "expire"))).filter(Q(updated_at__lt=now - timedelta(minutes=1)) | Q(expires_at__lte=now)).order_by("updated_at", "id")[:10]
+    for order in list(rows):
+        Order.objects.filter(pk=order.pk).update(updated_at=now)
+        try:
+            if settings.APP_ENV == "test" and settings.PAYMENT_PROVIDER == "fake":
+                with transaction.atomic():
+                    order = lock_order(order)
+                    if order.payment_state in pending and order.expires_at <= now:
+                        order.payment_state = Order.PaymentState.EXPIRED
+                        order.provider_payload["transaction_status"] = "expire"
+                        order.save(update_fields=("payment_state", "provider_payload", "updated_at"))
+                        if order.job_id:
+                            cancel_prepared_job(order.job, "payment_expired")
+            else:
+                refresh_order(order)
+        except ApiError as error:
+            logging.getLogger(__name__).warning("payment reconciliation unavailable order=%s code=%s", order.id, error.code)
+
+
 def maintain_once():
     now = timezone.now()
     reconcile_expired_leases(now)
@@ -208,7 +235,7 @@ def maintain_once():
     cleanup_orphan_media(now)
     evaluate_alerts(now)
     SupportGrant.objects.filter(expires_at__lte=now, revoked_at__isnull=True).update(revoked_at=now)
-    Order.objects.filter(payment_state=Order.PaymentState.PENDING, expires_at__lte=now).update(payment_state=Order.PaymentState.EXPIRED)
+    reconcile_payments(now)
     RateLimitBucket.objects.filter(window_start__lt=now - timedelta(days=2)).delete()
 
 

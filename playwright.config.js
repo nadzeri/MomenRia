@@ -2,6 +2,7 @@ const { defineConfig, devices } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
+  testIgnore: 'payments.spec.js',
   fullyParallel: false,
   workers: 1,
   timeout: 45000,

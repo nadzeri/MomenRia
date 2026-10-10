@@ -11,6 +11,7 @@ staticfiles/
 .DS_Store
 node_modules/
 test-results/
+test-results-payments/
 playwright-report/
 
 tests/e2e/generated/

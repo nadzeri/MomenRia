@@ -3,11 +3,11 @@ import tempfile
 from pathlib import Path
 
 
-def store_bytes_atomically(field, filename, content):
-    name = field.field.generate_filename(field.instance, filename)
+def store_bytes_atomically(field, filename, content, *, replace=False):
+    name = field.name if replace else field.field.generate_filename(field.instance, filename)
     destination = Path(field.storage.path(name))
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
+    if destination.exists() and not replace:
         raise FileExistsError(destination)
     descriptor, temporary_name = tempfile.mkstemp(prefix=".write-", dir=destination.parent)
     try:

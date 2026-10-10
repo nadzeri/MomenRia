@@ -1,10 +1,12 @@
 const { test, expect } = require('@playwright/test');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 
 const password = 'Portrait-test-2026!';
-let browserErrors;
+let browserErrors, scenarioOwner;
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
+  scenarioOwner=`launch-${testInfo.project.name}-${createHash('sha256').update(testInfo.title).digest('hex').slice(0,10)}`;
   browserErrors = [];
   page.on('pageerror', error => browserErrors.push(error.message));
 });
@@ -21,6 +23,7 @@ async function noOverflow(page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 }
 async function login(page, name) {
+  if (['desktop','mobile'].includes(name)) name=scenarioOwner;
   await page.goto('/accounts/login/');
   await page.locator('[name="login"]').fill(`${name}@example.com`);
   await page.locator('[name="password"]').fill(password);
@@ -66,9 +69,9 @@ test('landing, catalog filters, template detail and empty-state recovery', async
 
 test('content pages, private empty library, unknown routes and payment exclusion', async ({ page }) => {
   const routes = [
-    ['guide', 'Biar hasilnya oke, mulai dari fotonya.'], ['privacy', 'Privasi dan masa simpan'],
-    ['terms', 'Ketentuan penggunaan'], ['support', 'Butuh bantuan? Cerita, yuk.'],
-    ['projects', 'Foto saya'], ['missing-page', 'Halaman tidak ditemukan'], ['orders', 'Pembayaran belum tersedia'],
+    ['guide', 'Biar hasilnya oke, mulai dari fotonya.'], ['privacy', 'Kebijakan Privasi'],
+    ['terms', 'Syarat dan Ketentuan'], ['support', 'Butuh bantuan? Cerita, yuk.'],
+    ['projects', 'Foto saya'], ['missing-page', 'Halaman tidak ditemukan'], ['orders', 'Pesanan'],
   ];
   for (const [route, heading] of routes) {
     await page.goto(`/#/${route}`);
@@ -77,7 +80,7 @@ test('content pages, private empty library, unknown routes and payment exclusion
   }
   await page.goto('/#/support');
   await page.getByText('Yang gratis dapat apa saja?', { exact: true }).click();
-  await expect(page.getByText(/Preview dengan watermark bisa kamu download gratis/)).toBeVisible();
+  await expect(page.getByText(/3 foto baru gratis seumur hidup per akun/)).toBeVisible();
   await expect(page.getByRole('link', { name: 'Pesanan', exact: true })).toHaveCount(0);
   await page.goto('/#/projects');
   await expect(page.getByRole('link', { name: 'Masuk ke akun' })).toBeVisible();
@@ -138,18 +141,18 @@ test('complete private portrait lifecycle through real Django and synthetic work
   await expect(page.getByRole('heading', { name: 'Yuk, cek hasil fotomu', exact: true })).toBeVisible({ timeout: 30000 });
   expect(submissions).toBe(1);
   await expect(page.getByRole('button', { name: 'Beli versi ini' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Pesanan', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Pesanan', exact: true })).toHaveCount(1);
   const projectUrl = page.url();
   const resultId = await page.locator('[data-greeting]').getAttribute('data-greeting');
   await page.getByRole('button', { name: 'Simpan foto', exact: true }).click();
   const downloadEvent = page.waitForEvent('download');
-  await page.getByRole('link', { name: 'Download preview', exact: true }).click();
+  await page.getByRole('link', { name: 'Download foto', exact: true }).click();
   const download = await downloadEvent;
-  expect(download.suggestedFilename()).toBe(`momenria-preview-${resultId}.jpg`);
+  expect(download.suggestedFilename()).toBe(`momenria-${resultId}.jpg`);
   expect(await download.failure()).toBeNull();
   await page.keyboard.press('Escape');
   const response = await page.request.get(`/api/v1/results/${resultId}/master`);
-  expect(response.status()).toBe(404);
+  expect(response.status()).toBe(200);
   const outsider = await browser.newContext({ baseURL: new URL(page.url()).origin });
   const outsiderPage = await outsider.newPage();
   await login(outsiderPage, 'outsider');
@@ -393,7 +396,7 @@ test('event and university filters lead into a complete solo graduation portrait
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Cek dan pasang foto' }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
-  await page.getByRole('button', { name: 'Buat potret', exact: true }).click();
+  await page.getByRole('button', { name: /Buat potret gratis/ }).click();
   await expect(page.locator('.result-image img')).toBeVisible({ timeout: 60000 });
   await screenshot(page, testInfo, 'solo-graduation-result');
   await page.getByRole('link', { name: 'Template', exact: true }).click();

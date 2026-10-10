@@ -31,6 +31,18 @@ from .services import admit_job
 from .worker import claim_job, run_job
 
 
+class TrialSlotModelTests(TestCase):
+    def test_only_three_slots_can_be_granted(self):
+        from django.db import IntegrityError
+        from .models import Allowance
+        owner = User.objects.create_user("slots@example.com", "strong-password")
+        for number in (1, 2, 3):
+            Allowance.objects.create(owner=owner, kind="creation", policy_version="three-free-v1", trial_slot=number)
+        for number in (1, 4):
+            with self.subTest(slot=number), self.assertRaises(IntegrityError), transaction.atomic():
+                Allowance.objects.create(owner=owner, kind="creation", policy_version="three-free-v1", trial_slot=number)
+
+
 class ProcessingFlowTests(TestCase):
     def setUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
@@ -77,7 +89,357 @@ class ProcessingFlowTests(TestCase):
         for index, slot in enumerate(self.slots):
             self.upload_face(slot, index)
 
-    def test_completed_legacy_allowance_does_not_limit_new_creations(self):
+    def test_three_successful_creations_exhaust_quota_even_after_deletion(self):
+        from .quota import pricing_for
+        self.prepare()
+        for number in range(3):
+            admit_job(self.user, self.project.id, Job.Operation.CREATION, self.project.revision, f"trial-{number}")
+            self.assertTrue(run_job(claim_job()))
+            self.project.refresh_from_db()
+            self.assertEqual(pricing_for(self.user)["free_used"], number + 1)
+        with self.assertRaises(ApiError) as error:
+            admit_job(self.user, self.project.id, Job.Operation.CREATION, self.project.revision, "fourth")
+        self.assertEqual(error.exception.status, 402)
+        self.assertEqual(error.exception.code, "payment_required")
+        delete_project(self.user, self.project.id)
+        self.assertEqual(pricing_for(self.user)["free_remaining"], 0)
+
+    def test_confirmed_failed_trial_releases_slot_and_uncertain_trial_holds_it(self):
+        from .quota import pricing_for
+        from .services import release_failed_job
+        self.prepare()
+        job, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "failed-trial")
+        self.assertEqual(pricing_for(self.user)["free_reserved"], 1)
+        release_failed_job(job, "confirmed_failure")
+        self.assertEqual(pricing_for(self.user)["free_remaining"], 3)
+        retry, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "retry-trial")
+        self.assertEqual(retry.allowance_id, job.allowance_id)
+        Job.objects.filter(pk=retry.pk).update(state="uncertain")
+        self.assertEqual(pricing_for(self.user)["free_reserved"], 1)
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_paid_generation_order_freezes_inputs_before_payment(self):
+        from commerce.api import order_json
+        from commerce.services import create_generation_order
+        from .models import Allowance
+        from .quota import initialize_trial_allowances
+        self.prepare()
+        initialize_trial_allowances(self.user)
+        Allowance.objects.filter(owner=self.user, trial_slot__isnull=False).update(consumed_at=timezone.now())
+        offer = Offer.objects.get(purchase_unit="generation")
+        offer.active = True
+        offer.save()
+        data = {"offer_id": str(offer.id), "expected_revision": self.project.revision, "terms_version": "2026-10-10", "refund_policy_version": "2026-10-10", "policies_accepted": True}
+        order, created = create_generation_order(self.user, self.project.id, data, "paid-generation")
+        self.assertTrue(created)
+        self.assertEqual(order.amount_idr, 9900)
+        self.assertEqual(order.job.state, "awaiting_payment")
+        self.assertIsNone(claim_job())
+        self.assertIsNone(order_json(order)["result_id"])
+        self.assertEqual(order_json(order)["job_state"], "awaiting_payment")
+        self.assertIsNone(order_json(order)["download_url"])
+        self.assertIsNotNone(order.policies_accepted_at)
+        replay, created = create_generation_order(self.user, self.project.id, data, "paid-generation")
+        self.assertFalse(created)
+        self.assertEqual(replay.id, order.id)
+        self.assertEqual(self.project.jobs.count(), 1)
+        with override_settings(PAYMENT_CHECKOUT_ENABLED=False, TERMS_VERSION="new-policy"):
+            replay, created = create_generation_order(self.user, self.project.id, data, "paid-generation")
+            self.assertFalse(created)
+            self.assertEqual(replay.id, order.id)
+            with self.assertRaises(ApiError) as error:
+                create_generation_order(self.user, self.project.id, data, "new-purchase-paused")
+            self.assertEqual(error.exception.status, 503)
+        with self.assertRaises(ApiError) as error:
+            assign_source(self.user, self.project.id, self.slots[0].id, self.project.assignments.first().source_id, self.project.revision)
+        self.assertEqual(error.exception.code, "project_frozen")
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_paid_api_rejects_unaccepted_stale_and_client_priced_requests(self):
+        self.prepare()
+        offer = Offer.objects.get(purchase_unit="generation")
+        offer.active = True
+        offer.save()
+        self.client.force_login(self.user)
+        data = {"offer_id": str(offer.id), "expected_revision": self.project.revision, "terms_version": "2026-10-10", "refund_policy_version": "2026-10-10", "policies_accepted": True}
+        for changes, expected in (({"policies_accepted": False}, 400), ({"terms_version": "old"}, 409), ({"amount_idr": 1}, 400), ({"expected_revision": True}, 400)):
+            response = self.client.post(f"/api/v1/projects/{self.project.id}/generation-orders", {**data, **changes}, content_type="application/json", HTTP_IDEMPOTENCY_KEY=str(uuid.uuid4()))
+            self.assertEqual(response.status_code, expected)
+        response = self.client.post(f"/api/v1/projects/{self.project.id}/generation-orders", data, content_type="application/json", HTTP_IDEMPOTENCY_KEY="early-purchase")
+        self.assertEqual(response.json()["code"], "free_pictures_available")
+        self.assertFalse(self.project.jobs.exists())
+        self.assertFalse(self.project.orders.exists())
+
+    def prepare_paid_order(self):
+        from commerce.services import create_generation_order
+        from .models import Allowance
+        from .quota import initialize_trial_allowances
+        self.prepare()
+        initialize_trial_allowances(self.user)
+        Allowance.objects.filter(owner=self.user, trial_slot__isnull=False).update(consumed_at=timezone.now())
+        offer = Offer.objects.get(purchase_unit="generation")
+        offer.active = True
+        offer.save()
+        data = {"offer_id": str(offer.id), "expected_revision": self.project.revision, "terms_version": "2026-10-10", "refund_policy_version": "2026-10-10", "policies_accepted": True}
+        return create_generation_order(self.user, self.project.id, data, f"paid-flow-{self.project.id}")[0]
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_refund_before_result_does_not_cancel_another_paid_picture(self):
+        from commerce.services import record_refund_outcome, request_refund, settle_order
+        order = self.prepare_paid_order()
+        settle_order(order, "TX-NO-RESULT")
+        self.project = create_project(self.user, self.template, self.offer)
+        other = self.prepare_paid_order()
+        operator = User.objects.create_superuser("refund-before-result@example.com", "test-password")
+        refund, _ = request_refund(operator, order.id, "Customer remedy before dispatch", "refund-before-result")
+        record_refund_outcome(operator, refund.id, outcome="succeeded", amount_idr=9900, reference="REF-NO-RESULT", evidence="Verified completed full refund", reason="Approved customer remedy before dispatch")
+        order.job.refresh_from_db()
+        other.job.refresh_from_db()
+        self.assertEqual(order.job.state, "cancelled")
+        self.assertEqual(other.job.state, "awaiting_payment")
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_payment_queues_one_job_and_completion_grants_one_download(self):
+        from commerce.models import Entitlement
+        from commerce.services import settle_order
+        order = self.prepare_paid_order()
+        self.assertIsNone(claim_job())
+        with override_settings(PAYMENT_CHECKOUT_ENABLED=False):
+            settle_order(order, "TX-PAID", {"test": True, "duplicate_payment_of": "untrusted", "partial_refund_amount_idr": 9900})
+            settle_order(order, "TX-PAID", {"test": True})
+        order.refresh_from_db()
+        self.assertNotIn("duplicate_payment_of", order.provider_payload)
+        self.assertEqual(order.provider_payload.get("partial_refund_amount_idr", 0), 0)
+        order.job.refresh_from_db()
+        self.assertEqual(order.job.state, "queued")
+        self.assertFalse(Entitlement.objects.filter(order=order).exists())
+        self.assertTrue(run_job(claim_job()))
+        order.refresh_from_db()
+        self.assertEqual(order.fulfillment_state, "downloadable")
+        self.assertIsNotNone(order.result_id)
+        self.assertEqual(Entitlement.objects.filter(order=order).count(), 1)
+        self.assertIsNone(claim_job())
+        self.client.force_login(self.user)
+        for suffix in ("master", "preview?download=1"):
+            response = self.client.get(f"/api/v1/results/{order.result_id}/{suffix}")
+            self.assertEqual(response.status_code, 200)
+            content = b"".join(response.streaming_content)
+            self.assertEqual(hashlib.sha256(content).hexdigest(), order.result_sha256)
+            self.assertEqual(Image.open(io.BytesIO(content)).size, (order.result_width, order.result_height))
+        self.project.refresh_from_db()
+        correction, _ = admit_job(self.user, self.project.id, "correction", self.project.revision, "paid-free-correction", parent_result_id=order.result_id, target_slot_id=self.slots[0].id, correction_action="enhance")
+        self.assertIsNone(correction.allowance_id)
+        self.assertTrue(run_job(claim_job()))
+        correction.refresh_from_db()
+        self.assertEqual(correction.result.generation_root_id, order.result_id)
+        self.assertEqual(self.project.orders.count(), 1)
+        self.assertEqual(self.client.get("/api/v1/session").json()["pricing"]["free_remaining"], 0)
+
+    def test_worker_rejects_creation_without_valid_trial_reservation(self):
+        from .models import AllowanceReservation
+        self.prepare()
+        job, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "invalid-trial")
+        AllowanceReservation.objects.filter(job=job).delete()
+        self.assertFalse(run_job(claim_job()))
+        job.refresh_from_db()
+        self.assertEqual(job.error_code, "generation_not_authorized")
+        self.assertFalse(self.project.results.exists())
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_deleted_paid_undispatched_picture_retains_one_resolution(self):
+        from commerce.services import settle_order
+        from operations.models import SupportTicket
+        order = self.prepare_paid_order()
+        settle_order(order, "TX-PAID-DELETE")
+        delete_project(self.user, self.project.id)
+        order.refresh_from_db()
+        order.job.refresh_from_db()
+        self.assertEqual(order.job.state, "cancelled")
+        self.assertEqual(order.fulfillment_state, "delivery_failed")
+        self.assertEqual(order.refunds.count(), 1)
+        self.assertEqual(SupportTicket.objects.filter(order=order).count(), 1)
+        self.assertIsNone(claim_job())
+        settle_order(order, "TX-PAID-DELETE")
+        self.assertEqual(order.refunds.count(), 1)
+
+    def test_correction_inherits_root_expiry_and_media_is_physically_expired(self):
+        from operations.management.commands.maintenance import expire_assets
+        self.prepare()
+        creation, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "retention-root")
+        self.assertTrue(run_job(claim_job()))
+        creation.refresh_from_db()
+        root = creation.result
+        expiry = root.expires_at
+        self.project.refresh_from_db()
+        correction, _ = admit_job(self.user, self.project.id, "correction", self.project.revision, "retention-correction", parent_result_id=root.id, target_slot_id=self.slots[0].id, correction_action="enhance")
+        later = timezone.now() + timedelta(hours=1)
+        with patch("processing.worker.timezone.now", return_value=later):
+            self.assertTrue(run_job(claim_job()))
+        correction.refresh_from_db()
+        self.assertEqual(correction.result.expires_at, expiry)
+        assets = list(correction.result.media.all())
+        self.assertTrue(all(asset.expires_at == expiry for asset in assets))
+        expire_assets(expiry + timedelta(seconds=1))
+        correction.result.refresh_from_db()
+        self.assertEqual(correction.result.status, "expired")
+        for asset in assets:
+            asset.refresh_from_db()
+            self.assertIsNotNone(asset.deleted_at)
+            self.assertFalse(asset.file.storage.exists(asset.file.name))
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_partial_refund_before_settlement_holds_generation_for_resolution(self):
+        from commerce.services import apply_provider_status
+        from operations.models import SupportTicket
+        order = self.prepare_paid_order()
+        status = {"order_id": order.merchant_reference, "transaction_id": "TX-PARTIAL-GENERATION", "gross_amount": "9900.00", "currency": "IDR", "payment_type": "qris", "fraud_status": "accept", "transaction_status": "partial_refund", "status_code": "200", "refund_amount": "990.00"}
+        apply_provider_status(order, status)
+        order.refresh_from_db()
+        order.job.refresh_from_db()
+        self.assertEqual(order.payment_state, "paid")
+        self.assertEqual(order.job.state, "cancelled")
+        self.assertEqual(order.fulfillment_state, "delivery_failed")
+        self.assertEqual(SupportTicket.objects.filter(order=order).count(), 1)
+        self.assertIsNone(claim_job())
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_late_payment_after_deletion_opens_one_refund_without_dispatch(self):
+        from commerce.services import settle_order
+        order = self.prepare_paid_order()
+        delete_project(self.user, self.project.id)
+        settle_order(order, "TX-LATE", {"test": True})
+        settle_order(order, "TX-LATE", {"test": True})
+        order.refresh_from_db()
+        self.assertEqual(order.payment_state, "paid")
+        self.assertEqual(order.refunds.count(), 1)
+        self.assertEqual(order.refunds.get().amount_idr, 9900)
+        self.assertIsNone(claim_job())
+        self.assertFalse(self.project.results.exists())
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_confirmed_paid_failure_opens_refund_but_uncertain_failure_holds(self):
+        from commerce.services import settle_order
+        from .worker import WorkerFailure
+        order = self.prepare_paid_order()
+        settle_order(order, "TX-FAIL", {"test": True})
+        with patch("processing.worker._generate", side_effect=WorkerFailure("provider_timeout", uncertain=True)):
+            self.assertFalse(run_job(claim_job()))
+        self.assertFalse(order.refunds.exists())
+        order.job.refresh_from_db()
+        self.assertEqual(order.job.state, "uncertain")
+        from .services import release_failed_job
+        release_failed_job(order.job, "confirmed_non_delivery")
+        release_failed_job(order.job, "confirmed_non_delivery")
+        self.assertEqual(order.refunds.count(), 1)
+
+    @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_CHECKOUT_ENABLED=True, PAYMENT_SERVER_KEY="server-key", PAYMENT_QRIS_ACQUIRER="gopay", AI_GATEWAY_MODE="9router")
+    def test_qris_charge_uses_stored_price_and_keeps_validated_instructions(self):
+        from commerce.api import order_json
+        from commerce.services import apply_provider_status
+        sent = []
+
+        def gateway(method, path, payload=None):
+            sent.append((method, path, payload))
+            return {"order_id": payload["transaction_details"]["order_id"], "transaction_id": "TX-CORE", "gross_amount": "9900.00", "currency": "IDR", "payment_type": "qris", "fraud_status": "accept", "transaction_status": "pending", "status_code": "201", "actions": [{"name": "generate-qr-code", "method": "GET", "url": "https://api.sandbox.midtrans.com/v2/qris/TX-CORE/qr-code"}]}
+
+        with patch("commerce.services._midtrans_request", side_effect=gateway, create=True):
+            order = self.prepare_paid_order()
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(sent[0][0:2], ("POST", "/v2/charge"))
+        self.assertEqual(sent[0][2]["transaction_details"], {"order_id": order.merchant_reference, "gross_amount": 9900})
+        self.assertEqual(order.payment_state, "pending")
+        self.assertEqual(order_json(order)["payment_instructions"]["qr_url"], "https://api.sandbox.midtrans.com/v2/qris/TX-CORE/qr-code")
+        status = {"order_id": order.merchant_reference, "transaction_id": "TX-CORE", "gross_amount": "9900.00", "currency": "IDR", "payment_type": "qris", "fraud_status": "accept", "transaction_status": "pending", "status_code": "201"}
+        apply_provider_status(order, status)
+        order.refresh_from_db()
+        self.assertIn("qr_url", order_json(order)["payment_instructions"])
+
+    @override_settings(PAYMENT_PROVIDER="midtrans", PAYMENT_CHECKOUT_ENABLED=True, PAYMENT_SERVER_KEY="server-key", PAYMENT_QRIS_ACQUIRER="gopay", AI_GATEWAY_MODE="9router")
+    def test_charge_timeout_retains_order_and_only_retries_after_status_lookup(self):
+        from commerce.services import refresh_order
+        attempts = []
+
+        def gateway(method, path, payload=None):
+            attempts.append((method, path, payload))
+            raise ApiError(503, "payment_status_unavailable", "Timeout")
+
+        with patch("commerce.services._midtrans_request", side_effect=gateway, create=True):
+            order = self.prepare_paid_order()
+            self.assertEqual(order.payment_state, "uncertain")
+            with self.assertRaises(ApiError):
+                refresh_order(order)
+        self.assertEqual([item[0] for item in attempts], ["POST", "GET"])
+        self.assertEqual(self.project.orders.count(), 1)
+        self.assertEqual(self.project.jobs.get().state, "awaiting_payment")
+
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_expired_unpaid_order_releases_prepared_capacity(self):
+        from operations.management.commands.maintenance import reconcile_payments
+        order = self.prepare_paid_order()
+        Order.objects.filter(pk=order.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+        reconcile_payments(timezone.now())
+        order.refresh_from_db()
+        order.job.refresh_from_db()
+        self.assertEqual(order.payment_state, "expired")
+        self.assertEqual(order.job.state, "cancelled")
+        self.assertEqual(order.job.budget_reservation.state, "released")
+
+    def test_preview_thumbnail_and_greeting_have_no_brand_watermark(self):
+        from .worker import _preview
+        flat = Image.new("RGB", (2048, 1536), (96, 96, 96))
+        self.assertEqual(_preview(flat).getextrema(), ((96, 96), (96, 96), (96, 96)))
+        self.prepare()
+        job, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "clean-result")
+        with patch("processing.worker._generate", return_value=(flat, True, "fake-test", "")):
+            run_job(claim_job())
+        job.refresh_from_db()
+        self.project.refresh_from_db()
+        greeting = create_greeting(self.user, job.result_id, "", self.project.revision)
+        preview = greeting.media.get(kind=MediaAsset.Kind.PREVIEW)
+        with preview.file.open("rb") as file, Image.open(file) as image:
+            self.assertEqual(image.getextrema(), ((96, 96), (96, 96), (96, 96)))
+
+    def test_free_original_download_and_compatibility_download_match_master_bytes(self):
+        self.prepare()
+        job, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "full-download")
+        run_job(claim_job())
+        job.refresh_from_db()
+        master = job.result.media.get(kind=MediaAsset.Kind.MASTER)
+        self.client.force_login(self.user)
+        for suffix in ("master", "preview?download=1"):
+            response = self.client.get(f"/api/v1/results/{job.result_id}/{suffix}")
+            self.assertEqual(response.status_code, 200)
+            data = b"".join(response.streaming_content)
+            self.assertEqual(hashlib.sha256(data).hexdigest(), master.sha256)
+            self.assertEqual(Image.open(io.BytesIO(data)).size, (2048, 1536))
+
+    def test_correction_and_greeting_download_inherit_root_access_and_revocation(self):
+        from commerce.models import Entitlement
+        self.prepare()
+        job, _ = admit_job(self.user, self.project.id, "creation", self.project.revision, "root-access")
+        run_job(claim_job())
+        job.refresh_from_db()
+        self.project.refresh_from_db()
+        correction, _ = admit_job(self.user, self.project.id, "correction", self.project.revision, "derived-access", parent_result_id=job.result_id, target_slot_id=self.slots[0].id, correction_action="enhance")
+        run_job(claim_job())
+        correction.refresh_from_db()
+        self.project.refresh_from_db()
+        greeting = create_greeting(self.user, correction.result_id, "Selamat", self.project.revision)
+        self.client.force_login(self.user)
+        for result_id in (job.result_id, correction.result_id, greeting.id):
+            self.assertEqual(self.client.get(f"/api/v1/results/{result_id}/master").status_code, 200)
+        Entitlement.objects.filter(result_id_snapshot=job.result_id).update(revoked_at=timezone.now())
+        payload = self.client.get(f"/api/v1/projects/{self.project.id}").json()
+        self.assertFalse(any(item["access_available"] for item in payload["results"]))
+        for result_id in (job.result_id, correction.result_id, greeting.id):
+            for suffix in ("master", "preview", "preview?download=1", "preview?download=1&format=story"):
+                self.assertIn(self.client.get(f"/api/v1/results/{result_id}/{suffix}").status_code, (403, 404))
+
+
+
+
+
+    def test_legacy_consumed_allowance_counts_toward_lifetime_limit(self):
         from .models import Allowance, AllowanceReservation
 
         self.prepare()
@@ -89,10 +451,10 @@ class ProcessingFlowTests(TestCase):
         self.assertTrue(self.client.get("/api/v1/session").json()["creation_available"])
         for number in range(2):
             revision = self.project.revision
-            key = f"unlimited-creation-{number}"
+            key = f"lifetime-creation-{number}"
             job, created = admit_job(self.user, self.project.id, Job.Operation.CREATION, revision, key)
             self.assertTrue(created)
-            self.assertIsNone(job.allowance_id)
+            self.assertIsNotNone(job.allowance_id)
             replay, created = admit_job(self.user, self.project.id, Job.Operation.CREATION, revision, key)
             self.assertFalse(created)
             self.assertEqual(replay.id, job.id)
@@ -103,6 +465,9 @@ class ProcessingFlowTests(TestCase):
             job.refresh_from_db()
             self.assertEqual(job.state, Job.State.READY)
             self.project.refresh_from_db()
+        with self.assertRaises(ApiError) as error:
+            admit_job(self.user, self.project.id, Job.Operation.CREATION, self.project.revision, "fourth-unpaid")
+        self.assertEqual(error.exception.code, "payment_required")
         self.assertEqual(self.project.results.count(), 2)
         allowance.refresh_from_db()
         self.assertIsNotNone(allowance.consumed_at)
@@ -360,7 +725,7 @@ class ProcessingFlowTests(TestCase):
         self.project = assign_source(self.user, self.project.id, self.slots[0].id, source.id, self.project.revision, character_sheet_id=sheet.id)
         portrait, _ = admit_job(self.user, self.project.id, Job.Operation.CREATION, self.project.revision, "after-sheet")
         self.assertEqual(portrait.input_snapshot["sources"][0]["character_sheet"]["id"], str(sheet.id))
-        self.assertIsNone(portrait.allowance_id)
+        self.assertIsNotNone(portrait.allowance_id)
 
     def test_rejected_generated_sheet_has_only_one_explicit_retry(self):
         self.configure_character_template(identity_strategy="generated_optional", generated_sheets_enabled=True, sheet_max_cost_idr=500)
@@ -619,7 +984,7 @@ class ProcessingFlowTests(TestCase):
         self.assertIn("attachment;", response["Content-Disposition"])
         self.assertEqual(response["Cache-Control"], "private, no-store")
         self.assertTrue(b"".join(response.streaming_content).startswith(b"\xff\xd8"))
-        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/master").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/master").status_code, 200)
         self.client.force_login(self.other)
         self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/preview?download=1").status_code, 404)
         self.client.force_login(self.user)
@@ -634,7 +999,7 @@ class ProcessingFlowTests(TestCase):
         job.refresh_from_db()
         self.client.force_login(self.user)
         original_hashes = list(job.result.media.values_list("sha256", flat=True))
-        for name, size in {"square": (768, 768), "portrait": (576, 768), "story": (432, 768)}.items():
+        for name, size in {"square": (2048, 2048), "portrait": (2049, 2732), "story": (2052, 3648)}.items():
             url = f"/api/v1/results/{job.result_id}/preview?download=1&format={name}"
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
@@ -649,7 +1014,7 @@ class ProcessingFlowTests(TestCase):
                 self.client.force_login(self.user)
                 self.assertEqual(self.client.get(url).status_code, 404)
         self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/preview?format=master").status_code, 400)
-        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/master").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/master").status_code, 200)
         self.assertEqual(self.project.results.count(), 1)
         self.assertEqual(self.project.jobs.count(), 1)
         self.assertEqual(list(job.result.media.values_list("sha256", flat=True)), original_hashes)
@@ -664,6 +1029,9 @@ class ProcessingFlowTests(TestCase):
             self.assertGreater(min(image.getpixel((45, 65))), 225)
         preview = job.result.media.get(kind=MediaAsset.Kind.PREVIEW)
         MediaAsset.objects.filter(id=preview.id).update(deleted_at=timezone.now())
+        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/preview").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/preview?format=square").status_code, 200)
+        MediaAsset.objects.filter(result=job.result, kind=MediaAsset.Kind.MASTER).update(deleted_at=timezone.now())
         self.assertEqual(self.client.get(f"/api/v1/results/{job.result_id}/preview?format=square").status_code, 404)
 
     def test_editing_greeting_uses_clean_generation_image(self):
@@ -1026,6 +1394,64 @@ class ProcessingFlowTests(TestCase):
 
 @override_settings(AI_GATEWAY_MODE="fake", ADMISSION_ENABLED=True, DAILY_BUDGET_IDR=10000, ALLOW_UNBOUNDED_TEST_BUDGET=False, STORAGE_MIN_FREE_BYTES=0, STORAGE_MAX_USED_PERCENT=100)
 class ConcurrentAdmissionTests(TransactionTestCase):
+    @override_settings(PAYMENT_PROVIDER="fake", PAYMENT_CHECKOUT_ENABLED=True)
+    def test_concurrent_purchase_and_settlement_prepare_and_queue_once(self):
+        from commerce.services import apply_provider_status, create_generation_order
+        from operations.models import OutboxEvent
+        from .models import Allowance
+        from .quota import initialize_trial_allowances
+        offer = Offer.objects.create(version=Offer.objects.order_by("-version").first().version + 1, name="One picture", purchase_unit="generation", price_idr=9900, active=True)
+        initialize_trial_allowances(self.user)
+        Allowance.objects.filter(owner=self.user).update(consumed_at=timezone.now())
+        data = {"offer_id": str(offer.id), "expected_revision": self.project.revision, "terms_version": "2026-10-10", "refund_policy_version": "2026-10-10", "policies_accepted": True}
+        outcomes = []
+        barrier = threading.Barrier(2)
+
+        def purchase():
+            close_old_connections()
+            try:
+                barrier.wait(timeout=5)
+                order, created = create_generation_order(self.user, self.project.id, data, "concurrent-purchase")
+                outcomes.append((order.id, created))
+            finally:
+                connections.close_all()
+
+        threads = [threading.Thread(target=purchase) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+            self.assertFalse(thread.is_alive())
+        self.assertEqual(len(outcomes), 2)
+        self.assertEqual(len({item[0] for item in outcomes}), 1)
+        self.assertEqual(sum(item[1] for item in outcomes), 1)
+        order = Order.objects.get(pk=outcomes[0][0])
+        barrier = threading.Barrier(3)
+        errors = []
+        status = {"order_id": order.merchant_reference, "payment_type": "qris", "transaction_status": "settlement", "status_code": "200", "currency": "IDR", "fraud_status": "accept", "gross_amount": "9900.00", "transaction_id": "TX-RACE"}
+
+        def notify(state):
+            close_old_connections()
+            try:
+                barrier.wait(timeout=5)
+                apply_provider_status(Order.objects.get(pk=order.pk), {**status, "transaction_status": state, "status_code": "201" if state == "pending" else "200"})
+            except Exception as error:
+                errors.append(error)
+            finally:
+                connections.close_all()
+
+        threads = [threading.Thread(target=notify, args=(state,)) for state in ("pending", "settlement", "settlement")]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=10)
+            self.assertFalse(thread.is_alive())
+        self.assertEqual(errors, [])
+        order.refresh_from_db()
+        self.assertEqual(order.payment_state, "paid")
+        self.assertEqual(order.job.state, "queued")
+        self.assertEqual(OutboxEvent.objects.filter(topic="job.queued", payload__order_id=str(order.id)).count(), 1)
+
     def setUp(self):
         if connection.vendor != "postgresql":
             self.skipTest("Concurrency proof requires PostgreSQL")
@@ -1062,6 +1488,41 @@ class ConcurrentAdmissionTests(TransactionTestCase):
         self.assertEqual(Job.objects.filter(project=self.project).count(), 1)
         self.assertEqual(sum(kind == "job" for kind, _ in outcomes), 1)
         self.assertEqual(len(outcomes), 20)
+
+    def test_one_remaining_trial_slot_is_atomic_across_projects(self):
+        from .models import Allowance, AllowanceReservation
+        from .quota import initialize_trial_allowances
+        initialize_trial_allowances(self.user)
+        Allowance.objects.filter(owner=self.user, trial_slot__in=(1, 2)).update(consumed_at=timezone.now())
+        second = create_project(self.user, self.project.template, self.project.offer)
+        consent = Consent.objects.create(project=second, owner=self.user, text_version="prd-v1", granted=True)
+        for assignment in self.project.assignments.select_related("source"):
+            source = assignment.source
+            source.pk = None
+            source.project = second
+            source.consent = consent
+            source.upload_key = f"second-{assignment.slot_id}"
+            source.save()
+            SlotAssignment.objects.create(project=second, slot=assignment.slot, source=source, revision=1)
+        barrier = threading.Barrier(2)
+        outcomes = []
+
+        def submit(project):
+            close_old_connections()
+            try:
+                barrier.wait(timeout=5)
+                admit_job(self.user, project.id, "creation", project.revision, str(uuid.uuid4()))
+                outcomes.append("job")
+            except Exception as error:
+                outcomes.append(getattr(error, "code", type(error).__name__))
+            finally:
+                connections.close_all()
+
+        threads = [threading.Thread(target=submit, args=(project,)) for project in (self.project, second)]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join(timeout=10)
+        self.assertCountEqual(outcomes, ["job", "free_pictures_processing"])
+        self.assertEqual(AllowanceReservation.objects.filter(allowance__owner=self.user).count(), 1)
 
     @override_settings(DAILY_BUDGET_IDR=3000)
     def test_global_budget_is_atomic_across_projects(self):

@@ -4,7 +4,7 @@
 
 Production requires `PUBLIC_ACCESS=false`; shared-owner mode is rejected at startup. `PUBLIC_ACCESS=true` is for isolated test demos only. Anyone reaching such a demo can access that owner's workflow and data; never upload real customer photos there. Admin/operator authentication and MFA remain mandatory.
 
-The current launch scope excludes payments. Keep `PAYMENT_PROVIDER=disabled`; QRIS, merchant onboarding, settlement and refunds below apply only to a later paid release. See `docs/launch-readiness.md` for the non-payment go/no-go checklist.
+The current pricing release provides three lifetime successful free creations per account, then IDR9,900 per new picture. Corrections to the same picture and full-quality downloads remain free. Keep new paid checkout paused until the merchant, channel, policy, refund and AI/privacy gates close; see `docs/midtrans-review-checklist.md` and `docs/launch-readiness.md`. If money is already in flight, keep the payment provider configured for reconciliation while `PAYMENT_CHECKOUT_ENABLED=false` pauses new purchases.
 
 Keep admissions disabled until owner records decisions D01 to D12 from technical requirements. Hard blockers for real customer processing:
 
@@ -26,6 +26,19 @@ Keep admissions disabled until owner records decisions D01 to D12 from technical
 The web service needs write access to the result volume because greeting versions are rendered synchronously by Django. Keep that volume private. Caddy terminates HTTPS and sets `X-Forwarded-Proto`; Django trusts this header. Never expose the web container directly to an untrusted network. `Referrer-Policy: same-origin` permits account form CSRF validation while withholding referrers from other origins.
 
 Rollback application image only while schema remains compatible. Do not restore an older database over new orders. Reconcile payment provider records before reopening admissions.
+
+Do not reverse the late-receipt constraint migration after multiple verified receipts exist for one historical result. Extra payments retain their own receipt and refund/support resolution without another delivery. Refunding a verified extra duplicate payment preserves the originally funded picture; refunding the original payment ends its access.
+
+### Three-free-picture cutover
+
+1. Pause new paid checkout with `PAYMENT_CHECKOUT_ENABLED=false` and disable new admissions. Preserve configured payment reconciliation, history, deletion and authorized downloads. Back up database/media and deletion tombstones before migrating.
+2. Drain legacy creation/correction jobs. Reconcile pending or uncertain historical download payments, including locally cancelled/expired/failed orders whose provider outcome is unverified. The audit refuses `--apply` while these records remain unresolved.
+3. Apply current additive migrations on an isolated restored copy first. Run `python manage.py reconcile_pricing_history` without `--apply`; inspect every owner/result report. Real successful historical creations count even when deleted/expired; synthetic results, corrections and greetings do not. Incomplete history remains blocked for operator resolution. Existing receipts and activated offers keep their amounts.
+4. Confirm the dry-run against retained original master files. Missing/changed masters are reported and, on apply, quarantined with support resolution. Revoked/refunded, expired or deleted pictures are never restored. Clean previews are rebuilt from verified masters; original bytes remain unchanged.
+5. An active staff operator may apply the reviewed migration using `python manage.py reconcile_pricing_history --apply --operator staff@example.com --reason 'Approved reviewed historical pricing cutover'`, substituting the actual operator and reason. This is a production data change; do not run it merely to prepare review evidence. Re-run the dry-run and compare owner quotas, master hashes, grants, quarantines and payment reconciliation.
+6. Verify the active generation offer is IDR9,900, policy versions and merchant configuration are approved, and real AI/privacy/quality/economics/infrastructure gates are closed. Start maintenance/reconciliation before workers; reopen admissions and new checkout last.
+
+Rollback pauses new purchases and, if needed, new creations. Keep migrated lifetime usage, stored order amounts and grants; retain reconciliation and refund processing for money in flight. Do not undo quota history or restore an old database over new orders. Review [Midtrans release evidence](midtrans-review-checklist.md) before activation.
 
 ## AI uncertainty
 
@@ -55,7 +68,13 @@ Browser return does not grant access. Signed webhook plus authenticated provider
 
 ### Refund runbook
 
-Confirm delivery cannot be restored and policy permits refund. Create one refund request using stable idempotency key and full amount. Submit through approved merchant procedure, then record provider refund ID, terminal state, operator, reason, and timestamps. On timeout, query same provider request before retrying; never generate a new identity. Reconcile against settlement report. Live submission stays disabled until D04 and D11 close.
+Confirm delivery cannot be restored and the approved policy permits refund. Create one full-amount request through the operator API (staff MFA and recent authentication, stable Idempotency-Key) or use the automatically raised failed-generation request. Different keys cannot create a second outstanding/successful full refund. Issue the refund in the approved Midtrans dashboard procedure; this application does not submit a refund transfer.
+
+Open the Refund record in staff admin and choose **Record external refund outcome**. Enter the exact order amount in IDR, external reference, verified dashboard/report or approved manual-transfer evidence, outcome and audit reason. Staff MFA, refund-change permission and recent authentication protect submission. Audit events retain actor, timestamp, amount, reference, reason and evidence. Processing/uncertain outcomes do not revoke access. Verified success revokes future root/derived access and stops dispatch; completed records cannot be rewritten, and payment replay does not restore access. Already downloaded copies cannot be recalled.
+
+On timeout, query the same provider request before retrying; never generate a new refund identity. Reconcile against settlement reports daily. If the provider method/window cannot provide the approved remedy, staff must verify an owner-approved manual-transfer fallback and record its bank/report reference and verified completion. Final eligibility, support deadlines and fallback ownership must be approved before release; live submission remains an external release gate.
+
+An authenticated partial refund records the cumulative amount already returned, the remaining obligation and one support task; an undelivered job is held for resolution. It does not revoke delivered access or imply a full refund. Before issuing any further transfer, compare the verified partial amount with the provider report and refund only the remaining approved obligation. An obsolete full-amount request is blocked: record it failed only after proving it did not transfer, then request the remaining amount with a new audited key. Verified full-provider status can close the existing record. Successful completion of the remaining refund ends access when cumulative returned money equals the original order amount; never return the full order total a second time.
 
 ### Paid-file failure runbook
 

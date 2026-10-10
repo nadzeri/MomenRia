@@ -109,6 +109,7 @@ class Offer(models.Model):
     version = models.PositiveIntegerField(unique=True)
     name = models.CharField(max_length=100)
     price_idr = models.PositiveIntegerField()
+    purchase_unit = models.CharField(max_length=20, choices=(("result_download", "Legacy download"), ("generation", "New picture")), default="result_download")
     active = models.BooleanField(default=False)
     activated_at = models.DateTimeField(null=True, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -117,6 +118,7 @@ class Offer(models.Model):
         constraints = [
             models.CheckConstraint(condition=models.Q(price_idr__gte=1), name="catalog_offer_price_positive"),
             models.CheckConstraint(condition=models.Q(active=False) | models.Q(activated_at__isnull=False), name="catalog_active_offer_has_activation"),
+            models.UniqueConstraint(fields=("purchase_unit",), condition=models.Q(active=True, purchase_unit="generation"), name="catalog_one_generation_offer"),
         ]
 
     def save(self, *args, **kwargs):
@@ -126,6 +128,6 @@ class Offer(models.Model):
             self.activated_at = timezone.now()
         if self.pk:
             prior = type(self).objects.filter(pk=self.pk).first()
-            if prior and prior.activated_at and (prior.version != self.version or prior.name != self.name or prior.price_idr != self.price_idr or prior.activated_at != self.activated_at):
+            if prior and prior.activated_at and (prior.version != self.version or prior.name != self.name or prior.price_idr != self.price_idr or prior.activated_at != self.activated_at or prior.purchase_unit != self.purchase_unit):
                 raise ValidationError("Active offers are immutable; create a new version.")
         return super().save(*args, **kwargs)

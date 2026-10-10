@@ -1,0 +1,7 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>Order {{ refund.order.merchant_reference }}. Issue or verify the refund in the approved provider dashboard or manual transfer procedure first. This form records the evidence and does not transfer money.</p>
+<p>Only a verified full refund revokes future picture access. Requested, processing and uncertain outcomes keep access unchanged.</p>
+{% if refund.order.provider_payload.partial_refund_amount_idr %}<p>Previously returned (verified): IDR {{ refund.order.provider_payload.partial_refund_amount_idr }}. Verify the remaining obligation against the provider report. Enter only this request's amount; never return the original order total again. Success ends access only when the previous amount plus this request equals the order total.</p>{% endif %}
+<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">Record audited outcome</button></form>
+{% endblock %}

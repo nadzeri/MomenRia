@@ -62,7 +62,7 @@ p+p { margin-top:1rem; }
 .page-heading .lede { max-width:700px; }
 .page-footer { margin:0 var(--gutter); padding:40px 0 28px; border-top:1px solid var(--line); display:flex; gap:20px 28px; flex-wrap:wrap; align-items:center; color:var(--muted); font-size:var(--help-size); }
 .page-footer .brand { font-size:1.75rem; color:var(--ink); }
-.page-footer>div { margin-left:auto; display:flex; gap:20px; }
+.page-footer>div { margin-left:auto; display:flex; flex-wrap:wrap; gap:8px 20px; }
 .page-footer a { min-height:44px; display:inline-flex; align-items:center; }
 .page-footer small { flex-basis:100%; font-size:var(--help-size); }
 .landing { max-width:1440px; margin:auto; }
@@ -717,3 +717,7 @@ html { scrollbar-color:var(--muted) var(--cream); }
 
 /* Safari needs the fixed action to keep its own paint layer after scrolling. */
 @media(max-width:900px) { .studio-submit { transform:translateZ(0); } }
+.payment-qr { display: block; width: 280px; max-width: 100%; margin: 1rem 0; }
+.payment-card h2 { overflow-wrap: anywhere; }
+.payment-card .btn, .payment-card .text-link { margin: .35rem .5rem .35rem 0; }
+.pricing-summary, .purchase-total { font-weight: 700; }

@@ -97,14 +97,14 @@ test('batch upload survives invalid files and a lost assignment response, compar
     await expect(page.locator('#export-preview')).toHaveAttribute('src', `/api/v1/results/${selectedResult}/preview?format=${format}`);
     await expect.poll(() => page.locator('#export-preview').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
     const dimensions = await page.locator('#export-preview').evaluate(image => [image.naturalWidth, image.naturalHeight]);
-    expect(dimensions).toEqual({square:[768,768], portrait:[576,768], story:[432,768]}[format]);
+    expect(dimensions).toEqual({square:[2048,2048], portrait:[2049,2732], story:[2052,3648]}[format]);
   }
   await page.screenshot({ path: testInfo.outputPath('story-export.png') });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   const downloadEvent = page.waitForEvent('download');
-  await page.getByRole('link', { name: 'Download preview' }).click();
+  await page.getByRole('link', { name: 'Download foto' }).click();
   const download = await downloadEvent;
-  expect(download.suggestedFilename()).toBe(`momenria-preview-${selectedResult}-story.jpg`);
+  expect(download.suggestedFilename()).toBe(`momenria-${selectedResult}-story.jpg`);
   expect(await download.failure()).toBeNull();
   const exported = await (await page.request.get(`/api/v1/projects/${partial.id}`)).json();
   expect(exported.results).toHaveLength(compared.results.length);
